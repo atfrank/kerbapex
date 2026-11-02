@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>StintRadio overlay</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root { --bg:#f7f8fb; --good:#0f9d58; --bad:#d92b3c; --warn:#c98a00; --text:#0b0e14; --dim:#5d6a7c; --kerb:#e10600; --accent:#7c6cff; --blue:#2a7de1;
+          --u:min(1vw, 1.7vh); }                                       /* one unit that follows the window's size, whatever its shape */
+  * { box-sizing:border-box; }
+  html, body { margin:0; height:100%; overflow:hidden; font-family:"Segoe UI Variable","Segoe UI",system-ui,sans-serif; color:var(--text); user-select:none; }
+  body.panel { background:rgba(7,9,13,.66) !important; border-radius:calc(var(--u) * 2.2); }   /* ?panel=1: a dark glass panel for a video (OBS clears page backgrounds) */
+  body.dark { --bg:#07090d; --good:#34e089; --bad:#ff5d6c; --warn:#ffc83d; --text:#f3f6fa; --dim:#8794a6; --blue:#4aa8ff; }
+  body { background:var(--bg); position:relative; padding:calc(var(--u) * 2.6); display:grid; gap:calc(var(--u) * 1.2);
+         grid-template-columns:1fr; grid-template-rows:auto 1fr auto; grid-template-areas:"info" "map" "next"; }
+
+  /* the branded border: a gradient edge, kerb stripes top and bottom, the wordmark in the corner */
+  .frame { position:absolute; inset:0; pointer-events:none; border:calc(var(--u) * .45) solid transparent;
+           background:linear-gradient(var(--bg),var(--bg)) padding-box, linear-gradient(135deg,var(--accent),var(--blue) 55%,var(--kerb)) border-box; z-index:0; }
+  .kerb { position:absolute; left:0; right:0; height:calc(var(--u) * 1.5); pointer-events:none;
+          background:repeating-linear-gradient(-45deg, var(--kerb) 0 calc(var(--u) * 1.6), #f4f4f4 calc(var(--u) * 1.6) calc(var(--u) * 3.2)); opacity:.95; }
+  .kerb.t { top:0; } .kerb.b { bottom:0; }
+  .mark { position:absolute; right:calc(var(--u) * 3); bottom:calc(var(--u) * 1.9); font-weight:800; letter-spacing:.14em; font-size:calc(var(--u) * 1.7);
+          font-style:italic; pointer-events:none; }
+  .mark { color:var(--text); }
+  .mark b { color:var(--kerb); font-weight:800; }
+  body.plain .kerb, body.plain .frame { display:none; }
+  body.nomark .mark { display:none; }
+
+  #info { grid-area:info; display:flex; align-items:center; justify-content:space-between; gap:calc(var(--u) * 1.4); min-width:0; position:relative; }
+  #delta { font-size:calc(var(--u) * 5.6); font-weight:780; font-variant-numeric:tabular-nums; line-height:1; }
+  .good { color:var(--good); } .bad { color:var(--bad); }
+  #secs { display:flex; gap:calc(var(--u) * .8); flex-wrap:wrap; justify-content:flex-end; }
+  .sec { min-width:calc(var(--u) * 8); text-align:center; font-size:calc(var(--u) * 2.1); font-weight:700; padding:calc(var(--u) * .35) calc(var(--u) * .9);
+         border-radius:calc(var(--u) * 1); border:calc(var(--u) * .22) solid rgba(128,140,160,.35); color:var(--dim); font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .sec.up { border-color:var(--good); color:var(--good); background:rgba(52,224,137,.14); }
+  .sec.down { border-color:var(--bad); color:var(--bad); background:rgba(255,93,108,.14); }
+  .sec.live { border-style:dashed; }
+
+  .mapbox { grid-area:map; position:relative; min-height:0; min-width:0; }
+  .mapbox canvas { position:absolute; inset:0; width:100%; height:100%; }
+  .mapnone { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:var(--dim); text-align:center; font-size:calc(var(--u) * 2); }
+  #mapNext { grid-area:next; font-size:calc(var(--u) * 2.3); color:var(--dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; padding-right:calc(var(--u) * 14); position:relative; }
+  #mapNext.bad { color:var(--bad); font-weight:650; }
+  #mapSrc { display:none; }
+  #stale { position:absolute; right:calc(var(--u) * 3); top:calc(var(--u) * 2); font-size:calc(var(--u) * 1.8); color:var(--warn); display:none; }
+
+  /* a wide window: the numbers go in a column on the left, the map takes the rest */
+  @media (min-aspect-ratio: 9/5) {
+    body { grid-template-columns:minmax(0,.9fr) minmax(0,2fr); grid-template-rows:1fr auto; grid-template-areas:"info map" "next map"; }
+    #info { flex-direction:column; align-items:flex-start; justify-content:center; }
+    #secs { justify-content:flex-start; flex-direction:column; }
+    #mapNext { padding-right:0; white-space:normal; }
+  }
+  /* a very wide, short one (a banner): bigger numbers beside the map */
+  @media (min-aspect-ratio: 3/1) {
+    body { grid-template-columns:minmax(0,1.3fr) minmax(0,1fr); }
+    #delta { font-size:calc(var(--u) * 9); }
+    .sec { font-size:calc(var(--u) * 3.4); }
+    #secs { flex-direction:row; flex-wrap:wrap; }
+  }
+
+  /* edit mode: a bright dashed edge, a hint, and the corner that resizes */
+  #edit { display:none; position:absolute; inset:0; pointer-events:none; border:calc(var(--u) * .5) dashed var(--warn); z-index:5; }
+  #edit span { position:absolute; left:50%; top:calc(var(--u) * 2.4); transform:translateX(-50%); background:var(--warn); color:#06080b; font-weight:800;
+               font-size:calc(var(--u) * 2); padding:calc(var(--u) * .4) calc(var(--u) * 1.6); border-radius:99px; white-space:nowrap; }
+  #edit i { position:absolute; right:0; bottom:0; width:56px; height:56px; background:linear-gradient(135deg, transparent 50%, var(--warn) 50%); opacity:.9; }
+  body.editing #edit { display:block; }
+</style>
+</head>
+<body class="dark">
+<div class="frame"></div><div class="kerb t"></div><div class="kerb b"></div>
+<div id="info"><div id="delta">-</div><div id="secs"></div></div>
+<div class="mapbox" id="mapbox"><canvas id="trackmap"></canvas><div class="mapnone" id="mapNone">The map draws itself as you drive</div></div>
+<div id="mapNext">&nbsp;</div><span id="mapSrc"></span>
+<div class="mark"><b>KERB</b>APEX</div><div id="stale">last data</div>
+<div id="edit"><span>EDIT · drag to move · corner to resize · Ctrl+Alt+O to lock</span><i></i></div>
+<script>
+const $ = id => document.getElementById(id);
+let STALE = false;
+</script>
+<script>if (/[?&]panel=1/.test(location.search)) document.documentElement.classList.add("panel-on");</script>
+<script src="/trackmap.js"></script>
+<script>
+const sg = x => x == null ? "-" : (x <= 0 ? "▲ −" : "▼ +") + Math.abs(x).toFixed(2);
+function chips(sd) {
+  if (!sd) return "";
+  return [0, 1, 2].map(i => {
+    const live = i === sd.active && sd.now[i] == null, v = live ? sd.running : sd.now[i];
+    const cls = v == null ? "" : (v < -0.02 ? "up" : v > 0.02 ? "down" : "") + (live ? " live" : "");
+    return `<div class="sec ${cls}">S${i + 1} ${v == null ? "" : sg(v)}</div>`;
+  }).join("");
+}
+function show(s) {
+  mapUpdate(s.map);
+  const d = s.delta;
+  $("delta").textContent = d == null ? "-" : (d >= 0 ? "+" : "−") + Math.abs(d).toFixed(2);
+  $("delta").className = d == null ? "" : d > 0.05 ? "bad" : d < -0.05 ? "good" : "";
+  $("secs").innerHTML = chips(s.sector_delta);
+}
+let missed = 0;
+async function tick() {
+  try {
+    const s = await (await fetch("/api/race", { cache: "no-store" })).json();
+    if (s && s.track) { STALE = false; missed = 0; $("stale").style.display = "none"; show(s); }
+    else if (++missed > 3) { STALE = true; $("stale").style.display = "block"; }
+  } catch (e) { if (++missed > 3) { STALE = true; $("stale").style.display = "block"; } }
+  setTimeout(tick, 1000);
+}
+// the window's own state (edit mode, border), kept by StintRadio and set with the hotkeys
+async function settings() {
+  try {
+    const o = await (await fetch("/api/overlay", { cache: "no-store" })).json();
+    document.body.classList.toggle("editing", !!o.edit);
+    document.body.classList.toggle("plain", o.border !== true);           /* the border: kerb stripes and the edge */
+    document.body.classList.toggle("nomark", o.brand === false);          /* the KerbApex mark */
+    const glass = document.documentElement.classList.contains("panel-on");
+    document.body.classList.toggle("panel", glass);
+    document.body.classList.toggle("dark", glass || o.theme !== "light");
+    setMapTheme(!glass && o.theme === "light" ? "light" : "dark");
+  } catch (e) {}
+  setTimeout(settings, 500);
+}
+tick(); settings();
+</script>
+</body>
+</html>

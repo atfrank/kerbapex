@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KerbApex StintRadio</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2307090d'/%3E%3Cpath d='M0 20h32v6H0z' fill='%23e10600'/%3E%3Cpath d='M0 20l6 6H0zM12 20l6 6h-6zM24 20l6 6h-6z' fill='%23fff'/%3E%3Cpath d='M6 15L16 5l10 10' fill='none' stroke='%237c6cff' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<style>
+  :root { --bg:#07090d; --card:rgba(255,255,255,.045); --edge:rgba(255,255,255,.08); --text:#f3f6fa; --dim:#8794a6; --line:rgba(255,255,255,.07);
+          --brake:#ff5d6c; --thr:#34e089; --gain:#34e089; --loss:#ff5d6c; --blue:#4aa8ff; --accent:#7c6cff; }
+  * { box-sizing:border-box; }
+  html, body { margin:0; height:100%; color:var(--text); font:14px/1.3 "Segoe UI Variable","Segoe UI",system-ui,sans-serif; }
+  body { background:radial-gradient(1100px 650px at 12% -10%, #1a2140 0%, transparent 60%), radial-gradient(900px 600px at 100% 115%, #231535 0%, transparent 55%), var(--bg);
+         padding:12px; display:grid; gap:10px; grid-template-rows:auto 1fr 132px auto; height:100vh; overflow:hidden; }
+  .card { position:relative; background:var(--card); border:1px solid var(--edge); border-radius:16px; backdrop-filter:blur(8px); min-height:0; }
+  .lab { font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--dim); font-weight:600; }
+
+  .top { display:grid; grid-template-columns:1.5fr 1fr 1fr 1.4fr; gap:10px; }
+  .top .card { padding:12px 16px; display:flex; flex-direction:column; justify-content:space-between; gap:4px; }
+  #delta { font-size:56px; font-weight:700; line-height:1; letter-spacing:-.02em; font-variant-numeric:tabular-nums; }
+  #delta.gain { color:var(--gain); } #delta.loss { color:var(--loss); }
+  .deltabar { position:relative; height:12px; border-radius:99px; background:linear-gradient(90deg, rgba(52,224,137,.35), rgba(255,255,255,.06) 50%, rgba(255,93,108,.35)); margin-top:6px; }
+  .deltabar b { position:absolute; left:50%; top:-3px; bottom:-3px; width:2px; background:rgba(255,255,255,.35); }
+  .deltabar i { position:absolute; top:-4px; bottom:-4px; width:6px; margin-left:-3px; border-radius:4px; background:#fff; box-shadow:0 0 12px rgba(255,255,255,.7); left:50%; transition:left .12s linear; }
+  .speed { font-size:44px; font-weight:700; line-height:1; font-variant-numeric:tabular-nums; }
+  .speed small { font-size:14px; color:var(--dim); font-weight:500; margin-left:4px; }
+  .gear { display:inline-flex; align-items:center; justify-content:center; width:46px; height:46px; border-radius:12px; font-size:28px; font-weight:800;
+          background:linear-gradient(135deg, var(--accent), var(--blue)); }
+  .row { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  .pedals { display:flex; gap:16px; align-items:flex-end; height:62px; }
+  .pedal { flex:1; height:100%; border-radius:10px; background:rgba(255,255,255,.07); position:relative; overflow:hidden; }
+  .pedal i { position:absolute; left:0; right:0; bottom:0; height:0; transition:height .08s linear; }
+  .pedal.b i { background:linear-gradient(0deg,#ff5d6c,#ff8a5d); } .pedal.t i { background:linear-gradient(0deg,#34e089,#4aa8ff); }
+  .pedal span { position:absolute; left:0; right:0; top:4px; text-align:center; font-size:10px; letter-spacing:.12em; color:rgba(255,255,255,.75); text-transform:uppercase; z-index:1; }
+  .chip { display:inline-block; padding:4px 12px; border-radius:99px; background:rgba(255,255,255,.07); font-size:13px; }
+  .chip b { font-weight:650; }
+
+  canvas { width:100%; height:100%; display:block; }
+  .tag { position:absolute; left:14px; top:10px; }
+  .legend { position:absolute; right:14px; top:10px; display:flex; gap:14px; font-size:11px; color:var(--dim); }
+  .sw { display:inline-block; width:14px; height:3px; border-radius:2px; vertical-align:middle; margin-right:5px; }
+
+  #bottom { display:grid; grid-template-columns:1fr auto; gap:10px; align-items:start; }
+  #notes { display:grid; gap:6px; }
+  .note { background:var(--card); border:1px solid var(--edge); border-left:4px solid var(--dim); padding:8px 14px; border-radius:12px; font-size:15px; }
+  .note.loss { border-left-color:var(--loss); } .note.gain { border-left-color:var(--gain); }
+  .note:first-child { font-size:18px; font-weight:600; }
+  button { background:rgba(124,108,255,.18); border:1px solid rgba(124,108,255,.5); color:var(--text); border-radius:12px; padding:9px 16px; font:inherit; cursor:pointer; }
+  button:hover { background:rgba(124,108,255,.3); }
+  #tips { position:fixed; inset:auto 16px 16px auto; width:min(560px, calc(100vw - 32px)); max-height:70vh; overflow:auto; display:none; padding:16px 18px; z-index:5;
+          background:rgba(14,18,24,.96); border:1px solid var(--edge); border-radius:16px; box-shadow:0 20px 60px rgba(0,0,0,.6); }
+  #tips p { margin:8px 0; font-size:14px; line-height:1.4; } #tips h3 { margin:0 0 6px; font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:var(--dim); }
+  #stale { position:fixed; top:10px; right:14px; display:none; padding:5px 14px; border-radius:99px; background:rgba(255,200,61,.16); border:1px solid rgba(255,200,61,.55);
+           color:#ffc83d; font-size:13px; font-weight:600; z-index:3; }
+  #msg { position:fixed; inset:0; display:none; align-items:center; justify-content:center; text-align:center; padding:20px; background:rgba(7,9,13,.92);
+         color:var(--dim); font-size:24px; z-index:4; }
+
+  /* KerbApex branding: kerb stripes along the top, a gradient hairline along the bottom, the wordmark in the corner */
+  .kb-top { position:fixed; left:0; right:0; top:0; height:6px; z-index:50; pointer-events:none;
+            background:repeating-linear-gradient(-45deg, #e10600 0 7px, #f4f4f4 7px 14px); opacity:.92; }
+  .kb-edge { position:fixed; left:0; right:0; bottom:0; height:2px; z-index:50; pointer-events:none;
+             background:linear-gradient(90deg, #7c6cff, #4aa8ff 55%, #e10600); }
+  .kb-mark { position:fixed; left:16px; bottom:3px; z-index:50; pointer-events:none; font-size:9px; font-weight:800; letter-spacing:.18em;
+             font-style:italic; color:rgba(243,246,250,.55); }
+  .kb-mark b { color:#e10600; font-weight:800; }
+</style>
+</head>
+<body>
+<div class="kb-top"></div><div class="kb-edge"></div><div class="kb-mark"><b>KERB</b>APEX</div>
+<div class="top">
+  <div class="card"><div class="row"><span class="lab">Delta to reference</span><span class="chip" id="ref">no reference lap yet</span></div>
+    <div id="delta">--.--</div>
+    <div><div class="deltabar"><b></b><i id="dot"></i></div></div></div>
+  <div class="card"><span class="lab">Speed</span>
+    <div class="row"><div class="speed"><span id="speed">-</span><small>km/h</small></div><div class="gear" id="gear">-</div></div></div>
+  <div class="card"><span class="lab">Pedals &middot; lap <b id="lap">-</b></span>
+    <div class="pedals"><div class="pedal b"><span>brake</span><i id="pb"></i></div><div class="pedal t"><span>throttle</span><i id="pt"></i></div></div></div>
+  <div class="card" style="justify-content:center"><span class="lab">Next braking point</span>
+    <div class="speed" id="nextb" style="font-size:44px">-</div><div class="lab" id="nextbSub" style="text-transform:none;letter-spacing:0;font-size:13px">&nbsp;</div></div>
+</div>
+<div class="card"><span class="lab tag">Track ahead &middot; you vs reference by distance</span>
+  <div class="legend"><span><i class="sw" style="background:var(--brake)"></i>brake</span><span><i class="sw" style="background:var(--thr)"></i>throttle</span><span><i class="sw" style="background:#fff;opacity:.55"></i>reference (dashed)</span></div>
+  <canvas id="ahead"></canvas></div>
+<div class="card"><span class="lab tag">Last 10 seconds</span><canvas id="roll"></canvas></div>
+<div id="bottom"><div id="notes"></div><button id="tipsBtn">Suggestions</button></div>
+<div id="tips"></div>
+<div id="stale"></div>
+<div id="msg"></div>
+<script>
+const $ = id => document.getElementById(id);
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const esc = t => String(t).replace(/[<>&]/g, "");
+
+function fit(c) {
+  const r = c.getBoundingClientRect(), d = window.devicePixelRatio || 1;
+  if (c.width !== Math.round(r.width * d) || c.height !== Math.round(r.height * d)) { c.width = Math.round(r.width * d); c.height = Math.round(r.height * d); }
+  const g = c.getContext("2d"); g.setTransform(d, 0, 0, d, 0, 0); g.clearRect(0, 0, r.width, r.height);
+  return [g, r.width, r.height];
+}
+
+function plot(g, pts, yi, x0, x1, w, h, color, dashed, fill) {
+  if (!pts || pts.length < 2) return;
+  const top = 30, base = h - 10, X = p => (p[0] - x0) / (x1 - x0) * w, Y = p => base - p[yi] / 100 * (base - top);
+  g.beginPath();
+  pts.forEach((p, i) => i ? g.lineTo(X(p), Y(p)) : g.moveTo(X(p), Y(p)));
+  if (fill) {                                           // soft area under the live trace
+    const gr = g.createLinearGradient(0, top, 0, base); gr.addColorStop(0, color + "55"); gr.addColorStop(1, color + "00");
+    g.save(); g.lineTo(X(pts[pts.length - 1]), base); g.lineTo(X(pts[0]), base); g.closePath(); g.fillStyle = gr; g.fill(); g.restore();
+    g.beginPath(); pts.forEach((p, i) => i ? g.lineTo(X(p), Y(p)) : g.moveTo(X(p), Y(p)));
+  }
+  g.strokeStyle = color; g.lineWidth = dashed ? 1.6 : 2.6; g.lineJoin = "round"; g.globalAlpha = dashed ? .55 : 1; g.setLineDash(dashed ? [6, 5] : []);
+  g.stroke(); g.setLineDash([]); g.globalAlpha = 1;
+}
+
+function drawAhead(s) {
+  const [g, w, h] = fit($("ahead"));
+  const x0 = -250, x1 = 450, brake = css("--brake"), thr = css("--thr");
+  g.font = "11px Segoe UI"; g.fillStyle = css("--dim"); g.strokeStyle = css("--line"); g.lineWidth = 1;
+  for (let m = -200; m <= 400; m += 100) {
+    const x = (m - x0) / (x1 - x0) * w; g.beginPath(); g.moveTo(x, 30); g.lineTo(x, h - 10); g.stroke();
+    if (m) g.fillText(m + " m", x + 4, h - 14);
+  }
+  plot(g, s.ref_window, 1, x0, x1, w, h, brake, true); plot(g, s.ref_window, 2, x0, x1, w, h, thr, true);
+  plot(g, s.cur_window, 1, x0, x1, w, h, brake, false, true); plot(g, s.cur_window, 2, x0, x1, w, h, thr, false, true);
+  const xc = (0 - x0) / (x1 - x0) * w;                  // the car
+  const gr = g.createLinearGradient(0, 30, 0, h); gr.addColorStop(0, "#ffffff"); gr.addColorStop(1, "#ffffff00");
+  g.strokeStyle = gr; g.lineWidth = 2; g.beginPath(); g.moveTo(xc, 30); g.lineTo(xc, h - 10); g.stroke();
+  const nb = (s.ref_window || []).find((p, i, a) => p[0] > 0 && p[1] >= 20 && (i === 0 || a[i - 1][1] < 20));
+  if (nb) {                                             // the reference's next braking point
+    const xb = (nb[0] - x0) / (x1 - x0) * w, label = `BRAKE ${Math.round(nb[0])} m`;
+    g.setLineDash([4, 4]); g.strokeStyle = brake; g.lineWidth = 1.5; g.beginPath(); g.moveTo(xb, 30); g.lineTo(xb, h - 10); g.stroke(); g.setLineDash([]);
+    g.font = "700 12px Segoe UI"; const tw = g.measureText(label).width + 16, lx = Math.min(Math.max(xb - tw / 2, 4), w - tw - 4);
+    g.fillStyle = brake; g.beginPath(); g.roundRect(lx, 38, tw, 22, 11); g.fill(); g.fillStyle = "#06080b"; g.fillText(label, lx + 8, 53);
+    return nb[0];
+  }
+  return null;
+}
+
+function drawRoll(s) {
+  const [g, w, h] = fit($("roll"));
+  plot(g, s.rolling, 1, -10, 0, w, h, css("--brake"), false, true);
+  plot(g, s.rolling, 2, -10, 0, w, h, css("--thr"), false, true);
+}
+
+// keep the last numbers on screen until new ones arrive; say so in a small banner instead of blanking the page
+let last = null, lastAt = 0;
+try { last = JSON.parse(localStorage.getItem("sr_state")); lastAt = +localStorage.getItem("sr_state_at") || 0; } catch (e) {}
+
+function update(s, why) {
+  if (s && s.status === "driving") {
+    last = s; lastAt = Date.now();
+    try { localStorage.setItem("sr_state", JSON.stringify(s)); localStorage.setItem("sr_state_at", String(lastAt)); } catch (e) {}
+    $("stale").style.display = "none"; $("msg").style.display = "none";
+    show(s);
+  } else if (last) {
+    $("msg").style.display = "none";
+    $("stale").style.display = "block";
+    $("stale").textContent = `${why} · last data ${new Date(lastAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}`;
+    show(last);
+  } else {
+    $("msg").style.display = "flex"; $("msg").textContent = why;
+  }
+}
+
+function show(s) {  const d = s.delta;
+  $("delta").textContent = d == null ? "--.--" : (d >= 0 ? "+" : "−") + Math.abs(d).toFixed(2);
+  $("delta").className = d == null ? "" : d > 0 ? "loss" : "gain";
+  $("dot").style.left = (d == null ? 50 : 50 + Math.max(-1, Math.min(1, d)) * 50) + "%";
+  $("lap").textContent = s.lap; $("speed").textContent = s.speed; $("gear").textContent = s.gear > 0 ? s.gear : s.gear === 0 ? "N" : "R";
+  const last = (s.rolling || [])[(s.rolling || []).length - 1];
+  $("pb").style.height = (last ? Math.max(0, Math.min(100, last[1])) : 0) + "%";
+  $("pt").style.height = (last ? Math.max(0, Math.min(100, last[2])) : 0) + "%";
+  const r = s.ref || {};
+  $("ref").innerHTML = r.time ? `vs <b>${Math.floor(r.time / 60)}:${(r.time % 60).toFixed(3).padStart(6, "0")}</b> · ${r.source === "leader" ? "leader" + (r.driver ? " " + esc(r.driver) : "") : r.source === "coachdave" ? "Coach Dave lap" : "your best"}`
+                              : "no reference lap yet";
+  const nb = drawAhead(s); drawRoll(s);
+  $("nextb").textContent = nb == null ? "-" : Math.round(nb) + " m"; $("nextbSub").textContent = nb == null ? "none in view" : "to the reference's brake point";
+  $("notes").innerHTML = (s.notes || []).slice(0, 3).map(n => `<div class="note ${n.delta > 0 ? "loss" : "gain"}">${esc(n.text)}</div>`).join("");
+}
+
+async function tick() {
+  try {
+    const s = await (await fetch("/api/state")).json();
+    update(s, s.status === "stopped" ? "Live coach is off. Start it with: sr on, or Start StintRadio.bat"
+      : s.error ? `Waiting for the car... (${esc(s.error)})` : "Waiting for you to get in the car...");
+  } catch (e) { update(null, "StintRadio is not running"); }
+  setTimeout(tick, 100);
+}
+tick();
+
+$("tipsBtn").onclick = async () => {
+  const box = $("tips");
+  if (box.style.display === "block") { box.style.display = "none"; return; }
+  box.style.display = "block"; box.innerHTML = "<h3>Suggestions</h3><p>Working it out from the recorded laps…</p>";
+  try { const t = await (await fetch("/api/tips")).json();
+    box.innerHTML = "<h3>Suggestions from this session</h3>" + (t.lines || []).map(l => `<p>${esc(l)}</p>`).join(""); }
+  catch (e) { box.innerHTML = "<h3>Suggestions</h3><p>Could not read the session.</p>"; }
+};
+</script>
+</body>
+</html>

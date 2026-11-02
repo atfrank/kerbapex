@@ -1,0 +1,25 @@
+[project]
+name = "driverdirector"
+version = "0.1.0"
+description = "Driver-focused automated replay director for Le Mans Ultimate (OBS, overlays, PiP battles, AI commentary)"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi", "uvicorn[standard]", "obsws-python",
+  "anthropic", "edge-tts", "pydantic",
+  "duckdb",                       # reads the game's own telemetry files (UserData/Telemetry/*.duckdb)
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "httpx"]
+
+[project.scripts]
+driverdirector = "driverdirector.__main__:main"
+
+[tool.setuptools.packages.find]
+include = ["driverdirector*"]
+
+[tool.setuptools.package-data]
+driverdirector = ["web/**/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -1,0 +1,61 @@
+/* Default theme (the game's own replay UI is hidden while recording, so this is the full layout). Copy this folder to %APPDATA%/DriverDirector/themes/<name>/ to customise;
+   edits apply on the next overlay reload, no rebuild needed. */
+:root{--purple:#c05bff;--green:#2fd67b;--orange:#ff9f1a;--accent:#e10600;--bg:rgba(12,14,20,.86);--fg:#f4f6fa;--dim:#9aa3b2;--hyp:#e10600;--lmp2:#1f6feb;--gt3:#2ea043;--gte:#f2a900}
+#stage{position:absolute;inset:0;font-family:"Segoe UI",Arial,sans-serif;color:var(--fg)}
+#race{position:absolute;left:40px;top:40px;width:480px;height:40px;box-sizing:border-box;display:flex;justify-content:space-between;align-items:center;padding:0 14px;background:var(--bg);border-left:5px solid var(--accent);font-size:22px;font-weight:800;letter-spacing:.06em}
+#race .left{font-variant-numeric:tabular-nums}
+#race[data-final="1"] .lap{color:var(--accent)}
+#tower{position:absolute;left:40px;top:88px;width:480px}
+#tower .row{position:absolute;left:0;right:0;display:flex;gap:9px;align-items:center;height:34px;padding:0 10px 0 12px;background:var(--bg);border-left:5px solid var(--dim);font-size:19px;box-sizing:border-box;transition:transform .55s cubic-bezier(.3,.7,.2,1),opacity .4s,background .3s}
+#tower .row[data-cls=HYP],#tower .row[data-cls=Hyper]{border-left-color:var(--hyp)}
+#tower .row[data-cls=LMP2]{border-left-color:var(--lmp2)}
+#tower .row[data-cls*=GT3]{border-left-color:var(--gt3)}
+#tower .row.focus{background:var(--accent);font-weight:700}
+#tower .row.pit{opacity:.55}
+#tower .pos{width:24px;font-weight:700;text-align:right}#tower .num{width:34px;color:var(--dim);font-size:16px}
+#tower .row.focus .num,#tower .row.focus .gap{color:#fff}
+#tower .nm{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#tower .int{width:58px;text-align:right;font-size:14px;font-variant-numeric:tabular-nums;color:var(--dim);opacity:.85}
+#tower .row.focus .int{color:#fff}
+#tower .gap{width:62px;text-align:right;font-size:16px;font-variant-numeric:tabular-nums;color:var(--dim)}
+#tower .tyre{width:16px;text-align:center;font-size:14px;font-weight:800;color:var(--dim)}
+#tower .tyre[data-t=S]{color:#ff4d4d}#tower .tyre[data-t=M]{color:#ffd400}#tower .tyre[data-t=H]{color:#f4f6fa}#tower .tyre[data-t=W]{color:#4da3ff}#tower .tyre[data-t=I]{color:#2fd67b}
+#tower .bars{display:flex;gap:3px}
+#tower .bars i{display:block;width:17px;height:20px;background:rgba(255,255,255,.14);transition:background .25s,opacity .25s}
+#tower .bars i.purple{background:var(--purple)}#tower .bars i.green{background:var(--green)}#tower .bars i.orange{background:var(--orange)}
+#tower .bars i.old{opacity:.38}
+#tower .bars i.est{background-image:repeating-linear-gradient(135deg,rgba(0,0,0,.28) 0 3px,transparent 3px 6px)}
+#focus{position:absolute;left:40px;bottom:60px;min-width:520px;padding:14px 22px;background:var(--bg);border-left:8px solid var(--accent)}
+#focus .num{font-size:20px;color:var(--accent);font-weight:700}
+#focus .name{font-size:40px;font-weight:800;line-height:1.1}
+#focus .meta{font-size:19px;color:var(--dim);margin-top:4px}
+#focus .live{font-size:19px;margin-top:6px;color:var(--fg);letter-spacing:.04em;font-variant-numeric:tabular-nums}
+#focus .live b{font-size:22px}#focus .live .slow{color:#ff6b6b}#focus .live .fast{color:var(--green)}
+#title{display:none;position:absolute;left:50%;top:26%;transform:translateX(-50%);min-width:720px;white-space:nowrap;padding:22px 40px;background:var(--bg);border-left:10px solid var(--accent);text-align:left;animation:titlein .6s ease-out}
+#title .event{font-size:22px;letter-spacing:.14em;color:var(--accent);font-weight:800;text-transform:uppercase}
+#title .track{font-size:44px;font-weight:800;line-height:1.15}
+#title .who{font-size:24px;color:var(--dim);margin-top:6px}
+@keyframes titlein{from{opacity:0;transform:translate(-50%,14px)}to{opacity:1;transform:translate(-50%,0)}}
+#sectors{position:absolute;left:40px;bottom:190px;width:564px;display:grid;grid-template-columns:repeat(3,1fr) 1.4fr;gap:3px}
+#sectors .sc{background:var(--bg);padding:6px 10px 5px;border-bottom:5px solid var(--dim);display:flex;flex-direction:column}
+#sectors .l{font-size:13px;letter-spacing:.08em;color:var(--dim)}
+#sectors .t{font-size:24px;font-weight:700;font-variant-numeric:tabular-nums}
+#sectors .sc.purple{border-bottom-color:var(--purple)}#sectors .sc.purple .t{color:var(--purple)}
+#sectors .sc.green{border-bottom-color:var(--green)}#sectors .sc.green .t{color:var(--green)}
+#sectors .sc.orange{border-bottom-color:var(--orange)}#sectors .sc.orange .t{color:var(--orange)}
+#sectors .sc.none .t{color:var(--dim)}#sectors .sc.est .t{font-style:italic}
+#battle{position:absolute;left:50%;bottom:60px;transform:translateX(-50%);display:flex;gap:18px;padding:10px 26px;background:var(--bg);font-size:26px;font-weight:700;border-bottom:4px solid var(--accent)}
+#battle .gap{color:var(--accent)}
+#incident{position:absolute;top:40px;left:50%;transform:translateX(-50%);padding:10px 28px;background:var(--accent);font-size:24px;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
+#flag{display:none}
+#stage[data-flag=yellow] #flag{display:block;position:absolute;top:0;left:0;right:0;height:8px;background:#ffd400}
+#caption{position:absolute;left:50%;bottom:150px;transform:translateX(-50%);max-width:1200px;padding:6px 18px;background:rgba(0,0,0,.6);font-size:24px;text-align:center}
+#pip-label{position:absolute;top:28px;right:44px;padding:4px 12px;background:var(--accent);font-size:18px;font-weight:800;letter-spacing:.08em}
+/* PiP clip passes: hide everything except the label chip */
+#stage[data-mode=pip] #sectors,#stage[data-mode=pip] #incident,#stage[data-mode=pip] #tower,#stage[data-mode=pip] #race,#stage[data-mode=pip] #title,#stage[data-mode=pip] #focus,#stage[data-mode=pip] #battle,#stage[data-mode=pip] #caption{display:none!important}
+
+.nobars #tower .bars{display:none}
+.clear #stage{text-shadow:0 0 3px #000,0 1px 4px #000,0 0 8px rgba(0,0,0,.7)}
+.clear #tower .row{border-bottom:1px solid rgba(255,255,255,.08)}
+.clear #tower .row.focus{background:rgba(225,6,0,.55)}
+.clear{--dim:#e3e8f0}

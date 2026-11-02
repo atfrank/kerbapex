@@ -1,0 +1,128 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>DriverDirector overlay</title>
+<style>html,body{margin:0;background:transparent;overflow:hidden;width:1920px;height:1080px}</style>
+<link id="theme" rel="stylesheet">
+</head><body>
+<div id="stage" data-mode="main">
+  <div id="race"><span class="lap"></span><span class="left"></span></div>
+  <div id="tower"></div>
+  <div id="title"><div class="event"></div><div class="track"></div><div class="who"></div></div>
+  <div id="focus"><div class="num"></div><div class="name"></div><div class="meta"></div><div class="live"></div></div>
+  <div id="sectors"></div>
+  <div id="battle"><span class="who"></span><span class="gap"></span></div>
+  <div id="incident"></div>
+  <div id="flag"></div>
+  <div id="pip-label"></div>
+  <div id="caption"></div>
+</div>
+<script>
+const q = new URLSearchParams(location.search);
+document.getElementById('theme').href = `/theme/${q.get('theme') || 'default'}/style.css?${Date.now()}`;   // never a cached copy
+// a canvas other than 1920x1080 (RaceRoom's is 3440x1440): ?w=&h= is the canvas, ?zoom= scales the layout up on it
+const zoom = parseFloat(q.get('zoom')) || 1;
+if (q.get('alpha') !== null && q.get('alpha') !== '') {                            // see-through boxes: ?alpha=0..1 is the box opacity
+  document.documentElement.style.setProperty('--bg', `rgba(12,14,20,${parseFloat(q.get('alpha'))})`);
+  document.documentElement.classList.add('clear');
+}
+if (q.get('bars') === '0') document.documentElement.classList.add('nobars');      // no sector colours (RaceRoom has none)
+if (q.get('w') && q.get('h')) {
+  document.documentElement.style.zoom = zoom;
+  document.documentElement.style.width = document.body.style.width = (q.get('w') / zoom) + 'px';
+  document.documentElement.style.height = document.body.style.height = (q.get('h') / zoom) + 'px';
+}
+const $ = id => document.getElementById(id);
+const fmt = s => { if (!(s > 0)) return '--'; const m = Math.floor(s / 60); return m + ':' + (s % 60).toFixed(3).padStart(6, '0'); };
+
+const ROW = 36, rows = new Map();
+// Rows are kept per car and slid into place, so the board scrolls smoothly as positions change.
+function renderTower(list) {
+  const host = $('tower');
+  host.style.height = (list.length * ROW) + 'px';
+  const seen = new Set();
+  list.forEach((r, i) => {
+    let el = rows.get(r.id);
+    if (!el) {
+      el = document.createElement('div');
+      el.innerHTML = '<span class="pos"></span><span class="num"></span><span class="nm"></span><span class="int"></span><span class="gap"></span><span class="tyre"></span><span class="bars"><i></i><i></i><i></i></span>';
+      el.style.transform = `translateY(${i * ROW}px)`; el.style.opacity = 0;
+      host.appendChild(el); rows.set(r.id, el);
+      requestAnimationFrame(() => requestAnimationFrame(() => { el.style.opacity = ''; }));
+    }
+    el.className = 'row' + (r.focus ? ' focus' : '') + (r.pit ? ' pit' : '');
+    el.dataset.cls = r.cls;
+    const [pos, num, nm, intv, gap, tyre] = el.children;
+    pos.textContent = r.pos; num.textContent = r.num; nm.textContent = r.name; gap.textContent = r.focus ? '' : (r.gap || '');
+    intv.textContent = r.int ? '\u25B2' + r.int : '';
+    tyre.textContent = r.tyre || ''; tyre.dataset.t = r.tyre || '';
+    [...el.children[6].children].forEach((b, k) => {
+      const c = r.bars && r.bars[k];
+      b.className = c ? c.color + (c.old ? ' old' : '') + (c.est ? ' est' : '') : '';
+    });
+    el.style.transform = `translateY(${i * ROW}px)`;
+    seen.add(r.id);
+  });
+  for (const [id, el] of rows) if (!seen.has(id)) { rows.delete(id); el.style.opacity = 0; setTimeout(() => el.remove(), 500); }
+}
+
+function render(s) {
+  $('stage').dataset.mode = s.mode;
+  $('stage').dataset.flag = s.flag || 'green';
+  renderTower(s.tower || []);
+  const f = s.focus;
+  $('focus').style.display = f ? '' : 'none';
+  if (f) {
+    $('focus').querySelector('.num').textContent = '#' + f.num;
+    $('focus').querySelector('.name').textContent = f.name;
+    $('focus').querySelector('.meta').innerHTML =
+      `P${f.pos}${f.cls ? ' · ' + f.cls + ' P' + f.class_pos : ''} · Lap ${f.lap} · Last ${fmt(f.last_lap)}${f.speed_kmh ? ' · ' + f.speed_kmh + ' km/h' : ''}`;
+  }
+  const r = s.race;
+  $('race').style.display = r ? '' : 'none';
+  if (r) {
+    $('race').dataset.final = r.final ? '1' : '';
+    $('race').querySelector('.lap').textContent = r.final ? 'FINAL LAP' : 'LAP ' + r.lap + (r.laps ? ' / ' + r.laps : '');
+    const left = r.left;
+    $('race').querySelector('.left').textContent = left === null || left <= 0 ? '' : Math.floor(left / 60) + ':' + String(Math.floor(left % 60)).padStart(2, '0');
+  }
+  const lv = s.live;
+  const liveEl = $('focus').querySelector('.live');
+  liveEl.style.display = lv ? '' : 'none';
+  if (lv) {
+    const d = lv.delta;
+    const dTxt = d === null || d === undefined ? '' : `<b class="${d > 0.05 ? 'slow' : d < -0.05 ? 'fast' : ''}">${d > 0 ? '+' : d < 0 ? '−' : ''}${Math.abs(d).toFixed(2)}</b> vs ${lv.ref || 'best lap'}`;
+    liveEl.innerHTML = [dTxt, lv.corner ? lv.corner.toUpperCase() : ''].filter(Boolean).join(' · ');
+  }
+  const tt = s.title;
+  $('title').style.display = tt ? 'block' : 'none';
+  if (tt) {
+    $('title').querySelector('.event').textContent = tt.event || '';
+    $('title').querySelector('.track').textContent = tt.track + (tt.place ? ' · ' + tt.place : '');
+    $('title').querySelector('.who').textContent = (tt.driver || '') + (tt.date ? ' · ' + tt.date : '');
+  }
+  const sp = s.sectors;
+  $('sectors').style.display = sp ? '' : 'none';
+  if (sp) {
+    const cell = (label, c) => `<div class="sc ${c ? c.color : 'none'} ${c && c.est ? 'est' : ''}"><span class="l">${label}</span><span class="t">${c ? (c.est ? '~' : '') + c.time.toFixed(3) : '—'}</span></div>`;
+    $('sectors').innerHTML = cell('S1', sp.cells[0]) + cell('S2', sp.cells[1]) + cell('S3', sp.cells[2])
+      + `<div class="sc lap ${sp.lap_time ? sp.lap_time.color : 'none'}"><span class="l">LAP ${sp.lap}${sp.valid ? '' : ' · INVALID'}</span><span class="t">${sp.lap_time ? (sp.lap_time.est ? '~' : '') + fmt(sp.lap_time.time) : '—'}</span></div>`;
+  }
+  const b = s.battle;
+  $('battle').style.display = b ? '' : 'none';
+  if (b) {
+    $('battle').querySelector('.who').textContent = (b.side === 'ahead' ? '▲ ' : '▼ ') + b.rival;
+    $('battle').querySelector('.gap').textContent = '+' + b.gap.toFixed(2) + 's';
+  }
+  $('incident').style.display = s.incident ? '' : 'none';
+  $('incident').textContent = s.incident ? (s.incident.kind === 'penalty' ? 'PENALTY' : 'INCIDENT') + ' · ' + s.incident.text : '';
+  $('pip-label').textContent = s.inlay_label || '';
+  $('pip-label').style.display = s.inlay_label ? '' : 'none';
+  $('caption').textContent = s.caption || '';
+  $('caption').style.display = s.caption ? '' : 'none';
+}
+function connect() {
+  const ws = new WebSocket(`ws://${location.host}/ws`);
+  ws.onmessage = e => render(JSON.parse(e.data));
+  ws.onclose = () => setTimeout(connect, 1000);
+}
+connect();
+</script></body></html>

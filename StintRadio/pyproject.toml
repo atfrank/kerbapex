@@ -1,0 +1,24 @@
+[project]
+name = "stintradio"
+version = "1.0.0rc2"
+description = "A race engineer on the radio while you drive Le Mans Ultimate: braking countdowns, lap debriefs, habit coaching and race gaps"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi", "uvicorn[standard]", "pydantic",
+  "driverdirector",               # shared telemetry, driving analysis, ffmpeg and ElevenLabs helpers (installed from ../DriverDirector)
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "httpx"]
+
+[project.scripts]
+stintradio = "stintradio.__main__:main"
+
+[tool.setuptools.packages.find]
+include = ["stintradio*"]
+
+[tool.setuptools.package-data]
+stintradio = ["web/**/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DriverDirector</title>
+<style>
+:root{--bg:#0f1218;--card:#181d27;--line:#262d3b;--fg:#e8ecf3;--dim:#8d97a8;--acc:#e10600;--ok:#2ea043}
+@media (prefers-color-scheme: light){:root{--bg:#f4f5f8;--card:#fff;--line:#d9dde5;--fg:#161a22;--dim:#5d6677}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.45 "Segoe UI",system-ui,sans-serif}
+header{display:flex;align-items:center;gap:16px;padding:14px 24px;border-bottom:1px solid var(--line)}
+h1{font-size:18px;margin:0}.pill{font-size:12px;padding:3px 10px;border-radius:99px;background:var(--card);border:1px solid var(--line);color:var(--dim)}
+.pill.ok{color:var(--ok);border-color:var(--ok)}
+main{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:16px;padding:20px 24px;max-width:1400px;margin:auto}
+section{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px}
+h2{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);margin:0 0 12px}
+label{display:block;font-size:13px;color:var(--dim);margin:10px 0 3px}
+input,select{width:100%;padding:7px 9px;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;font:inherit}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+button{padding:8px 14px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--fg);font:inherit;cursor:pointer}
+button.primary{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:600}
+button:hover{filter:brightness(1.15)}
+.bar{height:8px;background:var(--bg);border-radius:4px;overflow:hidden;margin-top:10px}.bar>i{display:block;height:100%;background:var(--acc);width:0}
+table{width:100%;border-collapse:collapse;font-size:13px}td,th{padding:5px 6px;border-bottom:1px solid var(--line);text-align:left}
+th{color:var(--dim);font-weight:600}.wide{grid-column:1/-1}
+.cams{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.cams label{margin:0}
+code{background:var(--bg);padding:2px 6px;border-radius:4px;font-size:13px}
+</style></head><body>
+<header><h1>DriverDirector</h1><span class="pill" id="p-stage">idle</span><span class="pill" id="p-obs">OBS: –</span><button id="b-obs" onclick="launchObs()" style="padding:3px 12px;font-size:12px">Launch OBS</button>
+<span class="pill" id="p-game">LMU: –</span><button id="b-launch" onclick="launchGame()" style="padding:3px 12px;font-size:12px">Launch LMU</button>
+<span class="pill" id="p-data">frames: 0</span><span style="flex:1"></span>
+<span class="pill">OBS browser source: <code id="ovl"></code></span></header>
+<main>
+<section class="wide"><h2>0 · Replays</h2>
+  <div class="row" style="margin-top:0;align-items:center">
+    <input id="rq" placeholder="Search track, event…" style="flex:2;min-width:180px" oninput="drawReplays()">
+    <select id="rs" style="flex:1;min-width:120px" onchange="drawReplays()"><option value="">All sessions</option><option>Race</option><option>Qualify</option><option>Practice</option></select>
+    <button onclick="loadReplays()">Refresh</button><span id="rmsg" style="color:var(--dim);font-size:13px"></span></div>
+  <div style="max-height:320px;overflow:auto;margin-top:10px"><table><thead><tr><th>Date</th><th>Track</th><th>Event</th><th>Session</th><th>Size</th><th></th></tr></thead><tbody id="rbody"></tbody></table></div>
+</section>
+<section><h2>1 · Session</h2>
+  <div class="row"><button class="primary" onclick="analyzeHistory()">Analyze race (from history)</button>
+  <button onclick="post('/api/scan')">Scan replay (live capture)</button>
+  <button onclick="loadLog()">Load log…</button><button onclick="post('/api/cancel')">Cancel</button></div>
+  <label>Race start, replay seconds (blank = auto-estimate)</label><input id="rstart" type="number" placeholder="auto">
+  <div id="hinfo" style="color:var(--dim);font-size:13px;margin-top:6px"></div>
+  <label>Focus driver</label><select id="focus"></select>
+  <div class="row"><button class="primary" onclick="makePlan()">2 · Detect &amp; plan</button>
+  <button onclick="post('/api/preview',{speed:12})">Preview overlay</button>
+  <button onclick="post('/api/run')">3 · Record &amp; produce</button>
+  <button onclick="post('/api/produce')" title="Finish the video from the last recording (voice + composite). Close the game first to free memory.">4 · Produce video</button>
+  <button onclick="post('/api/game/exit_replay')" title="Leaves the current replay (back to the game menu) to free memory">Exit replay</button>
+  <button onclick="closeGame()" title="Asks Le Mans Ultimate to close normally">Close LMU</button></div>
+  <div class="bar"><i id="bar"></i></div><div id="msg" style="color:var(--dim);font-size:13px;margin-top:6px"></div>
+</section>
+<section><h2>Direction</h2>
+  <label>Pace</label><select id="pace"><option>patient</option><option>urgent</option></select>
+  <label>Hide LMU's replay UI/HUD while recording</label><select id="hideui"><option value="all">Whole recording (default: our overlay replaces it)</option><option value="clips">Inlay clips only</option><option value="off">Never touch it</option></select>
+  <label>Max PiP inlays</label><input id="max_inlays" type="number" min="0" max="30">
+  <label>PiP corner</label><select id="corner"><option>top_right</option><option>top_left</option><option>bottom_right</option><option>bottom_left</option></select>
+  <label>PiP size (fraction of video width)</label><input id="size" type="number" step="0.02" min="0.15" max="0.6">
+  <label>PiP border thickness (% of width) and colour</label><div class="row" style="margin-top:0"><input id="bpct" type="number" step="0.05" min="0.05" max="2" style="width:90px"><input id="bcol" placeholder="white or #RRGGBB" style="flex:1"></div>
+  <label>Camera angle duration (s)</label><input id="angle" type="number" step="0.5">
+  <label>Camera weights (0 off – 4 frequent)</label>
+  <div class="cams" id="weights"></div>
+</section>
+<section><h2>Detection</h2>
+  <label>Battle gap (s)</label><input id="gap" type="number" step="0.1">
+  <label>Min battle duration (s)</label><input id="bmin" type="number" step="1">
+  <label>Min incident score</label><input id="minscore" type="number" step="0.5">
+  <label><input id="sameclass" type="checkbox" style="width:auto"> Battles within class only</label>
+</section>
+<section><h2>OBS &amp; overlay</h2>
+  <label>OBS WebSocket URL</label><input id="obs_url"><label>Password</label><input id="obs_pw" type="password">
+  <label>Main scene</label><input id="scene"><label>Output folder</label><input id="outdir" placeholder="default: work folder">
+  <label>Crop game UI out of the capture (top % / bottom %)</label>
+  <div class="row" style="margin-top:0"><input id="crop_top" type="number" step="1" min="0" max="40" style="width:80px"><input id="crop_bottom" type="number" step="1" min="0" max="40" style="width:80px">
+  <button onclick="cropObs()">Apply</button><button onclick="cropObs(true)">Reset</button></div>
+  <label>PiP compositing</label><select id="cmode"><option value="ffmpeg">ffmpeg after recording (default)</option><option value="obs">OBS live (experimental)</option></select>
+  <label>Overlay theme</label><select id="theme"></select>
+</section>
+<section><h2>Music &amp; telemetry</h2>
+  <label>Background music</label><select id="mus_src"><option value="ai">AI generated (MusicGen, local)</option><option value="folder">My own tracks (folder)</option><option value="off">Off</option></select>
+  <label>Style prompt</label><input id="mus_prompt">
+  <label>Clips (30 s each; more = less repetition, slower to make)</label><input id="mus_clips" type="number" min="1" max="6" step="1">
+  <label>Folder of tracks (for "my own tracks")</label><input id="mus_folder" placeholder="C:\Music\RaceBeds">
+  <label>Music level, dB (lower = quieter; game + voice sit near -19)</label><input id="mus_level" type="number" step="1">
+  <label>Dip while the commentator speaks, dB</label><input id="mus_duck" type="number" step="1">
+  <div class="row"><button onclick="prepMusic()" title="Generate the music now (it is made once and reused)">Prepare music now</button><span id="mus_state" style="color:var(--dim);font-size:12px"></span></div>
+  <label><input id="telem" type="checkbox" style="width:auto"> Show car telemetry (the game's own speedo: gear, speed, rpm, pedals)</label>
+  <label>Leaderboard rows ahead / behind the focus driver</label>
+  <div class="row" style="margin-top:0"><input id="tw_ahead" type="number" min="0" max="10" style="width:80px"><input id="tw_behind" type="number" min="0" max="10" style="width:80px"></div>
+</section>
+<section><h2>YouTube</h2>
+  <label>OAuth client file (Desktop app JSON from Google Cloud)</label><input id="yt_secret" placeholder="C:\Users\you\client_secret.json">
+  <label>New uploads are</label><select id="yt_privacy"><option value="private">Private (safe default)</option><option value="unlisted">Unlisted</option><option value="public">Public</option></select>
+  <div class="row"><button onclick="ytConnect()">Connect YouTube</button><button onclick="ytDisconnect()">Disconnect</button><span id="yt_state" style="color:var(--dim);font-size:12px"></span></div>
+  <label>Video</label><input id="yt_video" placeholder="blank = the video just made">
+  <div class="row"><button onclick="ytDraft()">Draft title &amp; description</button></div>
+  <label>Title</label><input id="yt_title"><label>Description</label><textarea id="yt_desc" rows="6" style="width:100%"></textarea>
+  <div class="row"><button class="primary" onclick="ytUpload()">Upload to YouTube…</button></div>
+  <p style="color:var(--dim);font-size:12px">Setup once: in Google Cloud enable <b>YouTube Data API v3</b>, create an OAuth client of type <b>Desktop app</b>, add yourself as a test user, download its JSON and point the field above at it. Uploads go to your channel only after you confirm here. Google keeps uploads from unaudited API projects private; if so, set the video public in YouTube Studio.</p>
+</section>
+<section><h2>Commentary (Claude)</h2>
+  <label><input id="com_on" type="checkbox" style="width:auto"> Generate commentary</label>
+  <label>Writer</label><select id="com_backend"><option value="cli">Claude CLI (your login, no key)</option><option value="api">Anthropic API (needs key)</option></select>
+  <label>Model</label><input id="com_model">
+  <label>Voice engine</label><select id="com_engine"><option value="auto">Auto (Chatterbox if installed)</option><option value="chatterbox">Chatterbox (LMU Director's voice, slow on CPU)</option><option value="edge">Edge (instant, more robotic)</option><option value="fish">Fish Audio (cloud; key in FISH_API_KEY)</option><option value="elevenlabs">ElevenLabs (cloud; key in ELEVENLABS_API_KEY)</option></select>
+  <label>Chatterbox voice</label><select id="com_voice"></select>
+  <label>Edge voice</label><input id="com_edge">
+  <label>Style</label><input id="com_style">
+  <p style="color:var(--dim);font-size:12px">The CLI writer uses your Claude Code login; the API writer needs <code>ANTHROPIC_API_KEY</code>.</p>
+</section>
+<section><h2>Templates</h2>
+  <select id="tpl"></select>
+  <div class="row"><button onclick="tpl('load')">Load</button><button onclick="tpl('save')">Save current as…</button></div>
+  <div class="row"><button class="primary" onclick="save()">Apply settings</button></div>
+</section>
+<section class="wide"><h2>Plan</h2><div id="plan" style="color:var(--dim)">No plan yet.</div></section>
+</main>
+<script>
+const $=id=>document.getElementById(id);let S={};
+const j=async(u,m='GET',b)=>{const r=await fetch(u,{method:m,headers:{'Content-Type':'application/json'},body:b?JSON.stringify(b):undefined});
+  if(!r.ok){alert((await r.json()).detail||r.statusText);throw 0}return r.json()};
+const post=(u,b)=>j(u,'POST',b||{});
+$('ovl').textContent=location.origin+'/overlay';
+async function init(){
+  S=await j('/api/settings');
+  const th=await j('/api/themes');$('theme').innerHTML=th.map(t=>`<option>${t}</option>`).join('');
+  fill();refreshTpl();setInterval(poll,1000);poll();setInterval(pollGame,2500);pollGame()}
+function fill(){
+  $('pace').value=S.direct.pace;$('hideui').value=S.direct.hide_game_ui;$('max_inlays').value=S.direct.max_inlays;$('corner').value=S.direct.inlay_corner;
+  $('size').value=S.direct.inlay_size;$('bpct').value=S.direct.inlay_border_pct;$('bcol').value=S.direct.inlay_border_color;$('angle').value=S.camera.angle_duration;
+  $('weights').innerHTML=Object.entries(S.camera.weights).map(([k,v])=>`<div><label>${k}</label><input data-w="${k}" type="number" min="0" max="4" value="${v}"></div>`).join('');
+  $('gap').value=S.detect.battle_gap_s;$('bmin').value=S.detect.battle_min_s;$('minscore').value=S.detect.min_incident_score;$('sameclass').checked=S.detect.same_class_only;
+  $('obs_url').value=S.obs.url;$('obs_pw').value=S.obs.password;$('scene').value=S.obs.main_scene;$('outdir').value=S.obs.output_dir;$('crop_top').value=Math.round(S.obs.crop_top*100);$('crop_bottom').value=Math.round(S.obs.crop_bottom*100);
+  $('theme').value=S.overlay_theme;$('cmode').value=S.compose_mode;$('com_on').checked=S.commentary.enabled;$('com_model').value=S.commentary.model;$('com_backend').value=S.commentary.backend;
+  $('com_engine').value=S.commentary.tts_engine;$('com_edge').value=S.commentary.edge_voice;fillVoices(S.commentary.voice);$('com_style').value=S.commentary.style;
+  const m=S.music;$('mus_src').value=m.source;$('mus_prompt').value=m.prompt;$('mus_clips').value=m.clips;$('mus_folder').value=m.folder;$('mus_level').value=m.level_db;$('mus_duck').value=m.duck_db;
+  $('yt_secret').value=S.youtube.client_secret_path;$('yt_privacy').value=S.youtube.privacy;ytState();$('telem').checked=S.direct.telemetry;$('tw_ahead').value=S.direct.tower_ahead;$('tw_behind').value=S.direct.tower_behind;musicState()}
+async function musicState(){try{const m=await j('/api/music');$('mus_state').textContent=m.source==='ai'?(m.ready?'ready (cached)':m.model_downloaded?'not generated yet':'model not downloaded yet'):''}catch(e){}}
+async function ytState(){try{const y=await j('/api/youtube');$('yt_state').textContent=!y.configured?y.problem:y.authorized?('Connected'+(y.channel?': '+y.channel:'')):'Not connected'}catch(e){}}
+async function ytConnect(){await save();await post('/api/youtube/connect');$('yt_state').textContent='Sign in in the browser window that opened...';const t=setInterval(async()=>{await ytState();if(/Connected/.test($('yt_state').textContent))clearInterval(t)},3000)}
+async function ytDisconnect(){if(confirm('Disconnect DriverDirector from YouTube?')){await post('/api/youtube/disconnect');ytState()}}
+async function ytDraft(){await save();const v=$('yt_video').value.trim();const d=await j('/api/youtube/draft'+(v?'?video='+encodeURIComponent(v):''));$('yt_title').value=d.title;$('yt_desc').value=d.description;$('yt_video').value=d.video||v}
+async function ytUpload(){await save();const v=$('yt_video').value.trim(),priv=$('yt_privacy').value;
+  if(!$('yt_title').value.trim()){alert('Draft or type a title first');return}
+  if(!confirm('Upload to YOUR YouTube channel?\n\nVideo: '+(v||'(the video just made)')+'\nTitle: '+$('yt_title').value+'\nVisibility: '+priv.toUpperCase()))return;
+  await post('/api/youtube/upload',{video:v||undefined,title:$('yt_title').value,description:$('yt_desc').value,privacy:priv,confirm:true})}
+async function prepMusic(){await save();await post('/api/music/prepare')}
+async function save(){
+  S.direct.focus_driver=$('focus').value;S.direct.pace=$('pace').value;S.direct.hide_game_ui=$('hideui').value;S.direct.max_inlays=+$('max_inlays').value;
+  S.direct.inlay_corner=$('corner').value;S.direct.inlay_size=+$('size').value;S.direct.inlay_border_pct=+$('bpct').value;S.direct.inlay_border_color=$('bcol').value||'white';S.camera.angle_duration=+$('angle').value;
+  document.querySelectorAll('[data-w]').forEach(i=>S.camera.weights[i.dataset.w]=+i.value);
+  S.detect.battle_gap_s=+$('gap').value;S.detect.battle_min_s=+$('bmin').value;S.detect.min_incident_score=+$('minscore').value;S.detect.same_class_only=$('sameclass').checked;
+  Object.assign(S.obs,{url:$('obs_url').value,password:$('obs_pw').value,main_scene:$('scene').value,output_dir:$('outdir').value,crop_top:$('crop_top').value/100,crop_bottom:$('crop_bottom').value/100});
+  Object.assign(S.music,{source:$('mus_src').value,prompt:$('mus_prompt').value,clips:+$('mus_clips').value,folder:$('mus_folder').value,level_db:+$('mus_level').value,duck_db:+$('mus_duck').value});
+  Object.assign(S.youtube,{client_secret_path:$('yt_secret').value.trim(),privacy:$('yt_privacy').value});
+  Object.assign(S.direct,{telemetry:$('telem').checked,tower_ahead:+$('tw_ahead').value,tower_behind:+$('tw_behind').value});
+  S.overlay_theme=$('theme').value;S.compose_mode=$('cmode').value;Object.assign(S.commentary,{enabled:$('com_on').checked,model:$('com_model').value,backend:$('com_backend').value,voice:$('com_voice').value,tts_engine:$('com_engine').value,edge_voice:$('com_edge').value,style:$('com_style').value});
+  S=await j('/api/settings','PUT',S)}
+let gameUp=false,obsRunning=false;
+async function pollGame(){try{const g=await j('/api/game');
+  const txt=g.api?(g.replay_active?'LMU: replay active':'LMU: ready'):(g.running?'LMU: starting…':'LMU: not running');
+  obsRunning=g.obs_running;$('b-obs').style.display=g.obs_running?'none':'';
+  $('p-game').textContent=txt;$('p-game').className='pill'+(g.api?' ok':'');$('b-launch').style.display=g.running||g.api?'none':'';
+  if(g.api&&!gameUp&&!REPLAYS.length)loadReplays();gameUp=g.api}catch(e){}}
+async function closeGame(){if(!confirm('Close Le Mans Ultimate? Unsaved nothing is lost in replay mode, but the replay will end.'))return;await post('/api/game/close');pollGame()}
+async function launchObs(){$('p-obs').textContent='OBS: launching…';await post('/api/obs/launch');pollGame()}
+async function launchGame(){$('p-game').textContent='LMU: launching…';await post('/api/game/launch');pollGame()}
+async function cropObs(reset){await save();const r=await post('/api/obs/crop',reset?{reset:true}:{top:$('crop_top').value/100,bottom:$('crop_bottom').value/100});$('msg').textContent=reset?'Crop reset':`Crop applied (source ${r.source.join('x')} -> canvas ${r.canvas.join('x')})`}
+async function fillVoices(current){
+  try{const v=await j('/api/voices');
+    $('com_voice').innerHTML=v.voices.map(o=>`<option value="${o.value}">${o.label}</option>`).join('');
+    if(!v.voices.some(o=>o.value===current)&&current)$('com_voice').insertAdjacentHTML('beforeend',`<option value="${current}">${current}</option>`);
+    $('com_voice').value=current;
+    if(!v.chatterbox)$('com_voice').title='Chatterbox is not installed; the Edge voice will be used.'}catch(e){}}
+async function makePlan(){await save();await post('/api/plan');showPlan()}
+async function loadLog(){const p=prompt('Path to a .jsonl frame log');if(p){await post('/api/load_log',{path:p});poll()}}
+async function refreshTpl(){const t=await j('/api/templates');$('tpl').innerHTML=t.map(x=>`<option>${x}</option>`).join('')}
+async function tpl(a){if(a==='save'){const n=prompt('Template name');if(n){await post('/api/templates/'+encodeURIComponent(n));refreshTpl()}}
+  else if($('tpl').value){S=await post(`/api/templates/${encodeURIComponent($('tpl').value)}/load`);fill()}}
+let lastFrames=-1;
+async function poll(){const s=await j('/api/status');
+  $('p-stage').textContent=s.stage+(s.message?' · '+s.message.slice(0,40):'');$('bar').style.width=(s.progress*100)+'%';$('msg').textContent=s.message;
+  $('p-data').textContent='frames: '+s.frames+' · events: '+s.events;
+  $('p-obs').textContent='OBS: '+(s.obs.connected?(s.obs.recording?'recording':'connected'):(obsRunning?'starting… (WebSocket not ready)':'not running'));$('p-obs').className='pill'+(s.obs.connected?' ok':'');
+  if(s.frames&&s.frames!==lastFrames){lastFrames=s.frames;const r=await j('/api/roster');
+    $('focus').innerHTML=r.map(d=>`<option value="${d.driver}">#${d.number} ${d.driver} (${d.class})</option>`).join('');
+    if(S.direct.focus_driver)$('focus').value=S.direct.focus_driver}
+  if(s.plan&&s.stage!=='record main')showPlan.once||(showPlan.once=1,showPlan())}
+async function analyzeHistory(){const v=$('rstart').value;
+  try{const i=await post('/api/history',v?{race_start:+v}:{});
+    $('hinfo').textContent=`${i.track} · ${i.session} · ${i.drivers} drivers · ${i.incidents} incidents · race ${Math.round(i.race_start)}s–${Math.round(i.race_end)}s · source: ${i.source==='xml'?'results file (exact times)':'REST history (estimated times)'}`;
+    lastFrames=-1;poll()}catch(e){}}
+async function showPlan(){const p=await j('/api/plan');const fe=await j('/api/focus_events');
+  const m=t=>`${Math.floor(t/60)}:${String(Math.floor(t%60)).padStart(2,'0')}`;
+  $('plan').innerHTML=`<p>${p.summary.cues} camera cues · ${p.summary.inlays} PiP inlays · ${p.summary.events} events</p>
+  <h2>PiP inlays (other drivers' action)</h2>
+  <table><tr><th>Show at</th><th>Until</th><th>Event</th><th>Detail</th><th>Camera</th></tr>${p.inlays.map(i=>`<tr><td>${m(i.show_at)}</td><td>${m(i.show_until)}</td><td>${i.kind}</td><td>${i.desc}</td><td>${i.camera}</td></tr>`).join('')}</table>
+  <h2 style="margin-top:16px">Your driver's story</h2>
+  <table><tr><th>Time</th><th>Event</th><th>Detail</th><th>Timing</th></tr>${fe.filter(e=>e.kind!=='pit'||true).map(e=>`<tr><td>${m(e.t)}</td><td>${e.kind}</td><td>${e.desc}</td><td>${e.confidence==='exact'?'exact':'within lap'}</td></tr>`).join('')||'<tr><td colspan=4>Nothing notable.</td></tr>'}</table>`}
+let REPLAYS=[],loadedId=null;
+async function loadReplays(){$('rmsg').textContent='Loading…';
+  try{REPLAYS=await j('/api/replays');$('rmsg').textContent=REPLAYS.length+' replays'}catch(e){REPLAYS=[];$('rmsg').textContent='LMU not reachable – is the game running?'}
+  drawReplays()}
+function drawReplays(){const q=$('rq').value.toLowerCase(),s=$('rs').value;
+  const rows=REPLAYS.filter(r=>(!s||r.session===s)&&(!q||(r.track+' '+r.event).toLowerCase().includes(q)));
+  $('rbody').innerHTML=rows.map(r=>`<tr${r.id===loadedId?' style="background:var(--bg)"':''}><td>${r.date?new Date(r.date).toLocaleString([], {dateStyle:'medium',timeStyle:'short'}):''}</td>
+    <td>${r.track}</td><td>${r.event}</td><td>${r.session}</td><td>${r.size_mb} MB</td>
+    <td><button class="primary" onclick="openReplay(${r.id})">${r.id===loadedId?'Loaded ✓':'Load'}</button></td></tr>`).join('')||'<tr><td colspan=6 style="color:var(--dim)">No replays match.</td></tr>'}
+async function openReplay(id){const r=REPLAYS.find(x=>x.id===id);
+  $('rmsg').textContent=`Loading ${r.track} (${r.session})…`;
+  try{await post(`/api/replays/${id}/load`);loadedId=id;lastFrames=-1;drawReplays();$('rmsg').textContent=`Loaded ${r.track} · ${r.session}. When the replay is playing, press "Scan replay".`}
+  catch(e){$('rmsg').textContent='Load failed'}}
+init();loadReplays();
+</script></body></html>

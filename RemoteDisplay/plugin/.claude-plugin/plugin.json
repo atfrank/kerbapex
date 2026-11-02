@@ -1,0 +1,7 @@
+{
+  "name": "remotedisplay",
+  "description": "RemoteDisplay: gives a PC a real virtual monitor (Virtual Display Driver) so remote sessions, games and OBS keep a proper resolution such as 3440x1440 when the physical monitor is off or unplugged and Windows falls back to 640x480.",
+  "version": "0.1.0",
+  "author": { "name": "atfrank" },
+  "keywords": ["display", "resolution", "remote", "virtual-display", "sim-racing"]
+}

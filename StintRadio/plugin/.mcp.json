@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "stintradio": {
+      "command": "python",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/sr_mcp.py"]
+    }
+  }
+}

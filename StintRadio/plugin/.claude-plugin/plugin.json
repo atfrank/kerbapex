@@ -1,0 +1,7 @@
+{
+  "name": "stintradio",
+  "description": "StintRadio: a race engineer on the team radio while you drive Le Mans Ultimate - braking countdowns, lap debriefs, the corner costing you most and why, habit coaching (gears, short-shifting, braking points) and race gaps, in your own ElevenLabs voice or the Windows voice. References come from the class leader, your own best lap or your Coach Dave laps.",
+  "version": "1.0.0-rc.2",
+  "author": { "name": "StintRadio" },
+  "keywords": ["le-mans-ultimate", "lmu", "sim-racing", "race-engineer", "coaching", "telemetry"]
+}

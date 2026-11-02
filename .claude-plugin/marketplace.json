@@ -1,0 +1,29 @@
+{
+  "name": "kerbapex",
+  "description": "DriverDirector (automated replay videos), StintRadio (a race engineer on the radio) and RemoteDisplay (virtual monitor for remote use) for sim racing (RaceRoom Racing Experience and Le Mans Ultimate).",
+  "owner": {
+    "name": "atfrank"
+  },
+  "plugins": [
+    {
+      "name": "driverdirector",
+      "source": "./DriverDirector/claude-plugin",
+      "description": "Set up, configure and run DriverDirector, the automated replay director for RaceRoom Racing Experience and Le Mans Ultimate."
+    },
+    {
+      "name": "stintradio",
+      "source": "./StintRadio/plugin",
+      "description": "A race engineer on the radio while you drive RaceRoom Racing Experience or Le Mans Ultimate."
+    },
+    {
+      "name": "remotedisplay",
+      "source": "./RemoteDisplay/plugin",
+      "description": "Virtual display so a remote PC keeps a proper resolution (e.g. 3440x1440) when the monitor is off."
+    },
+    {
+      "name": "kerbapex-dev",
+      "source": "./dev-plugin",
+      "description": "Debugger and sandboxed self-improvement rounds for DriverDirector and StintRadio (works on its own git branch; you approve)."
+    }
+  ]
+}

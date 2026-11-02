@@ -1,0 +1,12 @@
+{
+  "name": "driverdirector-local",
+  "description": "Local marketplace for the DriverDirector plugin.",
+  "owner": { "name": "DriverDirector" },
+  "plugins": [
+    {
+      "name": "driverdirector",
+      "source": "./claude-plugin",
+      "description": "Set up, configure and run DriverDirector, the automated replay director for Le Mans Ultimate."
+    }
+  ]
+}

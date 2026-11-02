@@ -1,0 +1,512 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KerbApex StintRadio race</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2307090d'/%3E%3Cpath d='M0 20h32v6H0z' fill='%23e10600'/%3E%3Cpath d='M0 20l6 6H0zM12 20l6 6h-6zM24 20l6 6h-6z' fill='%23fff'/%3E%3Cpath d='M6 15L16 5l10 10' fill='none' stroke='%237c6cff' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<style>
+  :root { --bg:#07090d; --bg2:#0e1218; --card:rgba(255,255,255,.045); --edge:rgba(255,255,255,.08); --text:#f3f6fa; --dim:#8794a6;
+          --good:#34e089; --bad:#ff5d6c; --warn:#ffc83d; --blue:#4aa8ff; --accent:#7c6cff; }
+  * { box-sizing:border-box; }
+  html, body { margin:0; height:100%; color:var(--text); font-family:"Segoe UI Variable","Segoe UI",system-ui,sans-serif; }
+  body { background:radial-gradient(1200px 700px at 15% -10%, #1a2140 0%, transparent 60%), radial-gradient(900px 600px at 100% 110%, #231535 0%, transparent 55%), var(--bg);
+         padding:14px; display:grid; gap:12px; grid-template-rows:auto 1fr 1fr auto auto; overflow:hidden; }
+  /* fixed rows: a hidden flags or sector strip must not hand its share of the height to the radio calls */
+  #flags { grid-row:1; } .r1 { grid-row:2; } .r2 { grid-row:3; } .secs { grid-row:4; } #msgs { grid-row:5; }
+  #fuel { font-size:clamp(28px,4.2vw,72px); white-space:nowrap; }
+  .row { display:grid; gap:12px; min-height:0; }
+  .r1 { grid-template-columns:1.15fr 1.25fr 1.25fr 1fr; }
+  .r2 { grid-template-columns:1.1fr .9fr 1.1fr 1.4fr; }
+  .card { position:relative; background:var(--card); border:1px solid var(--edge); border-radius:18px; padding:14px 18px;
+          backdrop-filter:blur(8px); display:flex; flex-direction:column; justify-content:space-between; min-width:0; overflow:hidden; }
+  .lab { font-size:clamp(10px,1.2vw,14px); letter-spacing:.14em; text-transform:uppercase; color:var(--dim); font-weight:600; }
+  .big { font-size:clamp(34px,6.6vw,92px); font-weight:700; line-height:1; letter-spacing:-.02em; font-variant-numeric:tabular-nums; }
+  .mid { font-size:clamp(18px,3vw,40px); font-weight:650; font-variant-numeric:tabular-nums; }
+  .sub { font-size:clamp(12px,1.5vw,19px); color:var(--dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .good { color:var(--good); } .bad { color:var(--bad); } .warn { color:var(--warn); } .blue { color:var(--blue); }
+  .glow-good { box-shadow:inset 0 0 0 1px rgba(52,224,137,.5), 0 0 30px rgba(52,224,137,.12); }
+  .glow-bad  { box-shadow:inset 0 0 0 1px rgba(255,93,108,.55), 0 0 30px rgba(255,93,108,.16); }
+  svg { display:block; }
+
+  #flags { display:flex; gap:10px; flex-wrap:wrap; }
+  .flag { font-size:clamp(14px,2vw,26px); font-weight:800; letter-spacing:.06em; padding:6px 20px; border-radius:999px; color:#06080b; animation:pulse 1.2s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity:.65; } }
+
+  /* position + race progress ring */
+  .pos { display:flex; align-items:center; justify-content:space-between; gap:10px; height:100%; }
+  .pos .big { margin:2px 0; font-size:clamp(30px,5vw,72px); }
+  .ring { width:clamp(44px,6vw,86px); flex:none; }
+  .ring text { fill:var(--text); font-weight:700; font-variant-numeric:tabular-nums; }
+
+  /* gap cards with sparklines */
+  .spark { width:100%; height:clamp(34px,6vh,70px); margin-top:6px; }
+  .gaprow { display:flex; align-items:baseline; gap:10px; }
+  .arrow { font-size:clamp(20px,3vw,44px); font-weight:700; }
+
+  /* delta bar */
+  .deltabar { position:relative; height:clamp(14px,2.4vh,26px); border-radius:999px; background:linear-gradient(90deg, rgba(52,224,137,.35), rgba(255,255,255,.06) 50%, rgba(255,93,108,.35)); margin:10px 0 4px; }
+  .deltabar i { position:absolute; top:-5px; bottom:-5px; width:6px; margin-left:-3px; border-radius:4px; background:#fff; box-shadow:0 0 14px rgba(255,255,255,.7); transition:left .35s cubic-bezier(.2,.8,.2,1); }
+  .deltabar b { position:absolute; left:50%; top:-3px; bottom:-3px; width:2px; background:rgba(255,255,255,.35); }
+  .ends { display:flex; justify-content:space-between; font-size:clamp(10px,1.2vw,14px); color:var(--dim); }
+
+  /* fuel gauge */
+  .gauge { position:relative; height:clamp(18px,3vh,34px); border-radius:999px; background:rgba(255,255,255,.07); overflow:visible; margin:10px 0 6px; }
+  .gauge .fill { position:absolute; inset:0 auto 0 0; border-radius:999px; transition:width .6s ease; }
+  .gauge .mark { position:absolute; top:-6px; bottom:-6px; width:3px; background:#fff; border-radius:2px; box-shadow:0 0 10px rgba(255,255,255,.8); }
+
+  /* tyres around a car silhouette */
+  .car { display:grid; grid-template-columns:1fr auto 1fr; gap:8px 10px; align-items:stretch; flex:1; margin-top:8px; min-height:0; }
+  .tyre { border-radius:14px; text-align:center; display:flex; flex-direction:column; justify-content:center; align-items:center; padding:6px 4px; border:2px solid; font-variant-numeric:tabular-nums; min-width:0; }
+  .tyre .t { font-size:clamp(20px,3.4vw,50px); font-weight:750; line-height:1; }
+  .tyre small { font-size:clamp(10px,1.2vw,15px); color:var(--dim); letter-spacing:.08em; }
+  .tyre .w { width:70%; height:5px; border-radius:3px; background:rgba(255,255,255,.12); margin-top:6px; overflow:hidden; }
+  .tyre .w i { display:block; height:100%; background:currentColor; opacity:.85; }
+  .spine { width:clamp(6px,1vw,14px); border-radius:8px; background:linear-gradient(var(--dim), transparent); opacity:.4; grid-row:1 / span 2; grid-column:2; }
+
+  /* track map */
+  .maphead { display:flex; justify-content:space-between; gap:10px; align-items:baseline; }
+  .maphead span:last-child { font-size:clamp(10px,1.1vw,13px); color:var(--dim); white-space:nowrap; }
+  .mapbox { position:relative; flex:1; min-height:0; margin:4px 0; }
+  .mapbox canvas { position:absolute; inset:0; width:100%; height:100%; }
+  .mapnone { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:var(--dim); text-align:center; font-size:clamp(12px,1.5vw,18px); }
+
+  /* a phone: scroll down two columns of cards instead of squeezing four */
+  @media (max-width:760px) {
+    html, body { height:auto; }
+    body { overflow:auto; grid-template-rows:none; }
+    .r1, .r2 { grid-template-columns:1fr 1fr; }
+    .card { min-height:150px; }
+    .mapcard { grid-column:1 / -1; min-height:300px; }
+  }
+
+  .secs { display:none; grid-template-columns:repeat(3,1fr); gap:12px; }
+  .secs.on { display:grid; }
+  .sec { border-radius:16px; padding:8px 16px; border:2px solid var(--edge); font-variant-numeric:tabular-nums; min-width:0;
+         display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  .sec .k { font-size:clamp(10px,1.2vw,14px); color:var(--dim); letter-spacing:.12em; text-transform:uppercase; }
+  .sec .v { font-size:clamp(22px,3.6vw,50px); font-weight:750; line-height:1.1; }
+  .sec .l { font-size:clamp(10px,1.2vw,15px); color:var(--dim); text-align:right; }
+  .sec.up { border-color:rgba(52,224,137,.7); background:rgba(52,224,137,.12); color:var(--good); }
+  .sec.down { border-color:rgba(255,93,108,.7); background:rgba(255,93,108,.12); color:var(--bad); }
+  .sec.live { border-style:dashed; }
+  .times { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:8px; }
+  .pill { background:rgba(255,255,255,.06); border-radius:12px; padding:6px 8px; min-width:0; }
+  .pill .v { font-size:clamp(11px,1.12vw,26px); font-weight:700; font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .pill .k { font-size:clamp(9px,1vw,12px); color:var(--dim); letter-spacing:.12em; text-transform:uppercase; }
+
+  #msgs { display:flex; gap:10px; align-items:stretch; min-height:clamp(44px,8vh,90px); }
+  .bubble { flex:1; background:rgba(124,108,255,.12); border:1px solid rgba(124,108,255,.35); border-radius:16px; padding:10px 16px;
+            font-size:clamp(15px,2.1vw,28px); line-height:1.25; display:flex; align-items:center; min-width:0; }
+  .bubble.old { background:var(--card); border-color:var(--edge); color:var(--dim); font-size:clamp(12px,1.5vw,19px); flex:.7; }
+  .none { color:var(--dim); }
+  #stale { position:fixed; top:10px; right:14px; display:none; padding:6px 16px; border-radius:99px; background:rgba(255,200,61,.16); border:1px solid rgba(255,200,61,.55);
+           color:var(--warn); font-size:clamp(12px,1.5vw,18px); font-weight:600; z-index:3; }
+  #wait { position:fixed; inset:0; display:none; align-items:center; justify-content:center; background:var(--bg); color:var(--dim);
+          font-size:clamp(20px,4vw,48px); text-align:center; padding:20px; }
+
+  /* KerbApex branding: kerb stripes along the top, a gradient hairline along the bottom, the wordmark in the corner */
+  .kb-top { position:fixed; left:0; right:0; top:0; height:6px; z-index:50; pointer-events:none;
+            background:repeating-linear-gradient(-45deg, #e10600 0 7px, #f4f4f4 7px 14px); opacity:.92; }
+  .kb-edge { position:fixed; left:0; right:0; bottom:0; height:2px; z-index:50; pointer-events:none;
+             background:linear-gradient(90deg, #7c6cff, #4aa8ff 55%, #e10600); }
+  .kb-mark { position:fixed; left:16px; bottom:3px; z-index:50; pointer-events:none; font-size:9px; font-weight:800; letter-spacing:.18em;
+             font-style:italic; color:rgba(243,246,250,.55); }
+  .kb-mark b { color:#e10600; font-weight:800; }
+</style>
+</head>
+<body>
+<div class="kb-top"></div><div class="kb-edge"></div><div class="kb-mark"><b>KERB</b>APEX</div>
+<div id="flags"></div>
+
+<div class="row r1">
+  <div class="card"><div class="lab">Position</div>
+    <div class="pos"><div><div class="big" id="pos">-</div><div class="sub" id="cls">&nbsp;</div></div>
+      <svg class="ring" viewBox="0 0 100 100"><circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,.1)" stroke-width="9"/>
+        <circle id="ringArc" cx="50" cy="50" r="42" fill="none" stroke="url(#g1)" stroke-width="9" stroke-linecap="round" stroke-dasharray="0 264" transform="rotate(-90 50 50)"/>
+        <defs><linearGradient id="g1" x1="0" x2="1"><stop offset="0" stop-color="#7c6cff"/><stop offset="1" stop-color="#4aa8ff"/></linearGradient></defs>
+        <text id="ringTxt" x="50" y="58" text-anchor="middle" font-size="24">-</text></svg></div>
+    <div class="sub" id="lapLine">&nbsp;</div></div>
+  <div class="card" id="cardA"><div class="lab">Car ahead</div>
+    <div class="gaprow"><div class="big" id="gapA">-</div><div class="arrow" id="arrA"></div></div>
+    <svg class="spark" id="spA" viewBox="0 0 200 50" preserveAspectRatio="none"></svg><div class="sub" id="nameA">&nbsp;</div><div class="sub bad" id="loseA">&nbsp;</div></div>
+  <div class="card" id="cardB"><div class="lab">Car behind</div>
+    <div class="gaprow"><div class="big" id="gapB">-</div><div class="arrow" id="arrB"></div></div>
+    <svg class="spark" id="spB" viewBox="0 0 200 50" preserveAspectRatio="none"></svg><div class="sub" id="nameB">&nbsp;</div></div>
+  <div class="card"><div class="lab" id="toGoLab">To go</div><div class="big" id="toGo">-</div><div class="sub" id="spd">&nbsp;</div></div>
+</div>
+
+<div class="row r2">
+  <div class="card"><div class="lab">Tyres &middot; &deg;C</div>
+    <div class="car" id="tyres"></div></div>
+  <div class="card"><div class="lab">Fuel</div>
+    <div class="big" id="fuel">-</div>
+    <div class="gauge"><div class="fill" id="fuelFill"></div><div class="mark" id="fuelMark" style="display:none"></div></div>
+    <div class="sub" id="fuelLine">&nbsp;</div><div class="sub warn" id="expLine">&nbsp;</div></div>
+  <div class="card" id="cardD"><div class="lab">Delta to reference</div>
+    <div class="big" id="delta">-</div>
+    <div><div class="deltabar"><b></b><i id="deltaDot" style="left:50%"></i></div>
+      <div class="ends"><span>faster</span><span>slower</span></div></div>
+    <div class="times"><div class="pill"><div class="k">last</div><div class="v" id="tLast">-</div></div>
+      <div class="pill"><div class="k">best</div><div class="v" id="tBest">-</div></div>
+      <div class="pill"><div class="k">fastest</div><div class="v" id="tFast">-</div></div></div></div>
+  <div class="card mapcard"><div class="maphead"><span class="lab">Track</span><span id="mapSrc"></span></div>
+    <div class="mapbox" id="mapbox"><canvas id="trackmap"></canvas><div class="mapnone" id="mapNone">The map draws itself as you drive</div></div>
+    <div class="sub" id="mapNext">&nbsp;</div></div>
+</div>
+
+<div class="secs" id="secs"></div>
+
+<div id="msgs"></div>
+<div id="stale"></div>
+<div id="wait"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+const esc = t => String(t).replace(/[<>&]/g, "");
+const clock = s => s == null || s < 0 ? "-" : (s >= 3600 ? Math.floor(s / 3600) + ":" : "") + String(Math.floor(s % 3600 / 60)).padStart(s >= 3600 ? 2 : 1, "0") + ":" + String(Math.round(s % 60)).padStart(2, "0");
+const lapt = t => t == null || t <= 0 ? "-" : Math.floor(t / 60) + ":" + (t % 60).toFixed(3).padStart(6, "0");
+const hist = { A: [], B: [] };                       // gap history for the sparklines: [ms, seconds]
+const WINDOW = 90000;
+let STALE = false, last = null, lastAt = 0;
+try { last = JSON.parse(localStorage.getItem("sr_race")); lastAt = +localStorage.getItem("sr_race_at") || 0; } catch (e) {}
+
+function sparkline(svg, key, g, tone) {
+  const h = hist[key], now = Date.now();
+  if (g != null && !STALE) h.push([now, g]);
+  while (h.length && now - h[0][0] > WINDOW) h.shift();
+  if (h.length < 2) { svg.innerHTML = ""; return; }
+  const lo = Math.min(...h.map(p => p[1])), hi = Math.max(...h.map(p => p[1])), span = Math.max(hi - lo, 0.5);
+  const pts = h.map(p => `${((p[0] - (now - WINDOW)) / WINDOW * 200).toFixed(1)},${(46 - (p[1] - lo) / span * 40).toFixed(1)}`);
+  const col = `var(--${tone})`;
+  svg.innerHTML = `<defs><linearGradient id="f${key}" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="${col}" stop-opacity=".35"/><stop offset="1" stop-color="${col}" stop-opacity="0"/></linearGradient></defs>
+    <polygon points="${pts[0].split(",")[0]},50 ${pts.join(" ")} ${pts[pts.length - 1].split(",")[0]},50" fill="url(#f${key})"/>
+    <polyline points="${pts.join(" ")}" fill="none" stroke="${col}" stroke-width="2.2" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
+    <circle cx="${pts[pts.length - 1].split(",")[0]}" cy="${pts[pts.length - 1].split(",")[1]}" r="3" fill="${col}" vector-effect="non-scaling-stroke"/>`;
+}
+
+function gap(k, g, trend, name, closingIsGood) {
+  const big = $("gap" + k), arr = $("arr" + k), card = $("card" + k);
+  card.classList.remove("glow-good", "glow-bad");
+  if (g == null) { big.textContent = "-"; big.className = "big"; arr.textContent = ""; $("name" + k).textContent = name || " "; sparkline($("sp" + k), k, null, "dim"); return; }
+  big.textContent = g.toFixed(1);
+  const closing = trend != null && trend < -0.15, opening = trend != null && trend > 0.15;
+  const good = closingIsGood ? closing : opening, bad = closingIsGood ? opening : closing;
+  const tone = good ? "good" : bad ? "bad" : "blue";
+  big.className = "big " + (good ? "good" : bad ? "bad" : "");
+  arr.className = "arrow " + tone;
+  arr.textContent = closing ? "▼" : opening ? "▲" : "";
+  if (g < 0.6 && k === "B") card.classList.add("glow-bad");
+  if (g < 0.6 && k === "A") card.classList.add("glow-good");
+  $("name" + k).textContent = (name || "") + (trend == null ? "" : `   ${trend < 0 ? "" : "+"}${trend.toFixed(1)} s / 12 s`);
+  sparkline($("sp" + k), k, g, tone);
+}
+
+function tyreColour(t) { return t == null ? ["#3a4350", "var(--dim)"] : t < 70 ? ["#4aa8ff", "var(--blue)"] : t > 110 ? ["#ff5d6c", "var(--bad)"] : t > 100 ? ["#ffc83d", "var(--warn)"] : ["#34e089", "var(--good)"]; }
+
+// keep the last numbers on screen until new ones arrive; say so in a small banner instead of blanking the page
+function update(s, why) {
+  const live = s && s.status === "driving";
+  if (live) {
+    last = s; lastAt = Date.now(); STALE = false;
+    try { localStorage.setItem("sr_race", JSON.stringify(s)); localStorage.setItem("sr_race_at", String(lastAt)); } catch (e) {}
+    $("stale").style.display = "none"; $("wait").style.display = "none";
+    show(s);
+  } else if (last) {
+    STALE = true;
+    $("wait").style.display = "none";
+    $("stale").style.display = "block";
+    $("stale").textContent = `${why} · last data ${new Date(lastAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}`;
+    show(last);
+  } else {
+    $("wait").style.display = "flex";
+    $("wait").textContent = why;
+  }
+}
+
+// ---- the track map: a drawing fetched when its id changes, cars placed by lap distance and moved every frame -----------
+const MAP = { track: null, wanted: null, fetching: false, me: null, cars: new Map(), base: null, view: null, nextText: "" };
+const LIT_M = 300, TRAIL_M = 160, EASE_S = 0.22, PREDICT_S = 1.6, MAX_MS = 110;
+const CALM = matchMedia("(prefers-reduced-motion: reduce)").matches;
+try { MAP.track = JSON.parse(localStorage.getItem("sr_track")); } catch (e) {}
+if (MAP.track) setTrack(MAP.track);
+
+function setTrack(t) {
+  MAP.track = t;
+  MAP.base = null;
+  $("mapNone").style.display = "none";
+  $("mapSrc").textContent = { reference: "reference line", lap: "your lap", learning: "learning the track" }[t.source] || "";
+}
+
+async function fetchTrack() {
+  if (MAP.fetching) return;
+  MAP.fetching = true;
+  try {
+    const t = await (await fetch("/api/track", { cache: "no-store" })).json();
+    if (t && t.pts) {                                // nothing new: the drawing on screen stays
+      setTrack(t);
+      try { localStorage.setItem("sr_track", JSON.stringify(t)); } catch (e) {}
+    }
+  } catch (e) {}
+  MAP.fetching = false;
+}
+
+// lap distance -> a place on the drawing, between the two points around it (null off the end of a part-lap drawing)
+function spot(t, d) {
+  const n = t.pts.length;
+  let i;
+  if (t.closed) i = (((d % t.to) + t.to) % t.to) / t.to * n;
+  else { if (d < t.from || d > t.to) return null; i = (d - t.from) / Math.max(1, t.to - t.from) * (n - 1); }
+  const a = Math.floor(i) % n, b = t.closed ? (a + 1) % n : Math.min(a + 1, n - 1), f = i - Math.floor(i);
+  return [t.pts[a][0] + (t.pts[b][0] - t.pts[a][0]) * f, t.pts[a][1] + (t.pts[b][1] - t.pts[a][1]) * f];
+}
+
+// a new reading of a car: dead-reckon from it at the speed it has been going until the next one (they come at 1 Hz)
+function reading(c, d, now, L) {
+  if (c.target != null && d !== c.target) {
+    let step = d - c.target;
+    if (L && Math.abs(step) > L / 2) step -= Math.sign(step) * L;
+    const dt = (now - c.at) / 1000;
+    c.v = dt > 0.05 ? Math.max(0, Math.min(MAX_MS, step / dt)) : c.v;
+    c.at = now;
+  } else if (c.target == null) { c.at = now; c.shown = d; c.v = 0; }
+  c.target = d;
+}
+
+function mapUpdate(m) {
+  if (!m) return;
+  if (m.id && m.id !== (MAP.track && MAP.track.id) && !STALE) fetchTrack();
+  const now = performance.now(), L = MAP.track && MAP.track.closed ? MAP.track.to : 0;
+  if (!MAP.me) MAP.me = {};
+  reading(MAP.me, m.dist, now, L);
+  const seen = new Set();
+  for (const k of m.cars || []) {
+    const key = k.p + "|" + k.n;
+    seen.add(key);
+    const c = MAP.cars.get(key) || {};
+    reading(c, k.d, now, L);
+    Object.assign(c, { n: k.n, side: k.side, pit: k.pit });
+    MAP.cars.set(key, c);
+  }
+  for (const key of [...MAP.cars.keys()]) if (!seen.has(key)) MAP.cars.delete(key);
+}
+
+function moved(c, dtS, now, L) {
+  let want = c.target;
+  if (!STALE && c.v) want += c.v * Math.min(PREDICT_S, (now - c.at) / 1000);
+  let off = want - c.shown;
+  if (L) { off = ((off % L) + L) % L; if (off > L / 2) off -= L; }
+  c.shown += CALM ? off : off * (1 - Math.exp(-dtS / EASE_S));
+  if (L) c.shown = ((c.shown % L) + L) % L;
+}
+
+// fit the drawing to the card, turned a quarter if that makes it noticeably bigger
+function fit(t, W, H) {
+  const xs = t.pts.map(p => p[0]), ys = t.pts.map(p => p[1]);
+  const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+  const pad = 16, w = Math.max(1, x1 - x0), h = Math.max(1, y1 - y0);
+  const flat = Math.min((W - 2 * pad) / w, (H - 2 * pad) / h), turned = Math.min((W - 2 * pad) / h, (H - 2 * pad) / w);
+  const turn = turned > flat * 1.15, k = turn ? turned : flat, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+  return turn ? p => [W / 2 + (p[1] - cy) * k, H / 2 + (p[0] - cx) * k] : p => [W / 2 + (p[0] - cx) * k, H / 2 - (p[1] - cy) * k];
+}
+
+function line(g, pts, closed) {
+  g.beginPath();
+  pts.forEach((p, i) => i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1]));
+  if (closed) g.closePath();
+}
+
+// what never moves is drawn once into its own canvas: the track, the reference line, the start line
+function mapBase(t, W, H, dpr) {
+  const cv = document.createElement("canvas");
+  cv.width = W * dpr; cv.height = H * dpr;
+  const g = cv.getContext("2d");
+  g.scale(dpr, dpr);
+  g.lineJoin = g.lineCap = "round";
+  const view = fit(t, W, H), pts = t.pts.map(view);
+  line(g, pts, t.closed);
+  g.strokeStyle = "rgba(255,255,255,.11)"; g.lineWidth = 11; g.stroke();
+  line(g, pts, t.closed);
+  g.strokeStyle = t.source === "reference" ? "rgba(74,168,255,.8)" : "rgba(255,255,255,.3)"; g.lineWidth = 1.6; g.stroke();
+  if (t.closed) {
+    const [x, y] = pts[0], [x2, y2] = pts[1], len = Math.hypot(x2 - x, y2 - y) || 1, nx = -(y2 - y) / len, ny = (x2 - x) / len;
+    g.beginPath(); g.moveTo(x - nx * 9, y - ny * 9); g.lineTo(x + nx * 9, y + ny * 9);
+    g.strokeStyle = "#fff"; g.lineWidth = 2.5; g.stroke();
+  }
+  MAP.base = cv; MAP.view = view; MAP.size = W + "x" + H + "@" + dpr;
+}
+
+function zoneNow(z, me, L) {            // [metres until it starts, inside it now]
+  const inside = L ? ((me - z.from) % L + L) % L < ((z.to - z.from) % L + L) % L : me >= z.from && me <= z.to;
+  return [L ? ((z.from - me) % L + L) % L : z.from - me, inside];
+}
+
+let mapLast = performance.now();
+function mapFrame(now) {
+  requestAnimationFrame(mapFrame);
+  const t = MAP.track, cv = $("trackmap"), box = $("mapbox");
+  const dtS = Math.min(0.25, (now - mapLast) / 1000);
+  mapLast = now;
+  const W = box.clientWidth, H = box.clientHeight;
+  if (!t || !MAP.me || MAP.me.shown == null || W < 20 || H < 20) return;
+  const dpr = window.devicePixelRatio || 1, L = t.closed ? t.to : 0;
+  if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
+  if (!MAP.base || MAP.size !== W + "x" + H + "@" + dpr) mapBase(t, W, H, dpr);
+  const g = cv.getContext("2d");
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.clearRect(0, 0, W, H);
+  g.drawImage(MAP.base, 0, 0, W, H);
+  g.lineJoin = g.lineCap = "round";
+  const place = d => { const p = spot(t, d); return p && MAP.view(p); };
+
+  moved(MAP.me, dtS, now, L);
+  const me = MAP.me.shown;
+
+  // braking zones: faint all round the lap, lighting up over the last LIT_M metres before you reach one
+  let next = null;
+  for (const z of t.zones || []) {
+    const [ahead, inside] = zoneNow(z, me, L);
+    if (inside || (ahead >= 0 && (!next || ahead < next.ahead))) { if (inside || !next || !next.inside) next = { z, ahead, inside }; }
+    const lit = inside ? 1 : ahead >= 0 && ahead < LIT_M ? 1 - ahead / LIT_M : 0;
+    const span = L ? ((z.to - z.from) % L + L) % L : z.to - z.from, pts = [];
+    for (let k = 0; k <= 12; k++) { const p = place(z.from + span * k / 12); if (p) pts.push(p); }
+    if (pts.length < 2) continue;
+    line(g, pts, false);
+    g.strokeStyle = `rgba(255,93,108,${0.3 + 0.7 * lit})`;
+    g.lineWidth = 5 + 4 * lit;
+    g.shadowColor = "#ff5d6c"; g.shadowBlur = 18 * lit;
+    g.stroke();
+    g.shadowBlur = 0;
+  }
+
+  // a fading trail behind your car
+  const drawn = L ? me : Math.max(t.from, Math.min(t.to, me));     // a part-lap drawing lags the car: wait at its tip
+  let prev = place(drawn);
+  if (!CALM) for (let k = 1; k <= 16 && prev; k++) {
+    const p = place(drawn - TRAIL_M * k / 16);
+    if (!p) break;
+    g.beginPath(); g.moveTo(prev[0], prev[1]); g.lineTo(p[0], p[1]);
+    g.strokeStyle = `rgba(124,108,255,${0.8 * (1 - k / 17)})`; g.lineWidth = 5; g.stroke();
+    prev = p;
+  }
+
+  // the other cars, then names for the two around you and anyone close on the road, never on top of each other
+  g.font = "600 12px 'Segoe UI Variable','Segoe UI',system-ui,sans-serif";
+  const labels = [], taken = [];
+  const roadTo = d => L ? Math.min(((d - me) % L + L) % L, ((me - d) % L + L) % L) : Math.abs(d - me);
+  for (const c of MAP.cars.values()) {
+    moved(c, dtS, now, L);
+    const p = place(c.shown);
+    if (!p) continue;
+    const col = c.pit ? "rgba(135,148,166,.45)" : c.side < 0 ? "#34e089" : c.side > 0 ? "#ffc83d" : "rgba(220,228,240,.7)";
+    g.beginPath(); g.arc(p[0], p[1], c.side ? 5 : 3.5, 0, 7);
+    g.fillStyle = col; g.fill();
+    if (!c.pit && c.n && (c.side || roadTo(c.shown) < 200)) labels.push({ p, c, col, rank: c.side ? 0 : 1 });
+  }
+  const mine = place(drawn);
+  if (mine) {
+    g.beginPath(); g.arc(mine[0], mine[1], 7, 0, 7);
+    g.fillStyle = "#fff"; g.shadowColor = "#fff"; g.shadowBlur = 16; g.fill(); g.shadowBlur = 0;
+    taken.push([mine[0] - 10, mine[1] - 10, mine[0] + 10, mine[1] + 10]);
+  }
+  labels.sort((a, b) => a.rank - b.rank);
+  for (const { p, c, col } of labels.slice(0, 6)) {
+    const name = c.n.split(" ").pop(), w = g.measureText(name).width, y = p[1] + 4;
+    const fits = x => x > 2 && x + w < W - 2 && !taken.some(b => x - 2 < b[2] && x + w + 2 > b[0] && y - 11 < b[3] && y + 3 > b[1]);
+    const x = [p[0] + 8, p[0] - 8 - w, p[0] - w / 2].find(fits);       // to the right, else the left, else on top of the dot
+    if (x == null) continue;
+    taken.push([x - 2, y - 11, x + w + 2, y + 3]);
+    g.lineWidth = 3; g.strokeStyle = "rgba(7,9,13,.85)"; g.strokeText(name, x, y);
+    g.fillStyle = col; g.fillText(name, x, y);
+  }
+
+  const text = !next ? " " : next.inside ? `Braking zone · ${next.z.name}` : `Next braking · ${next.z.name} · ${Math.round(next.ahead / 10) * 10} m`;
+  if (text !== MAP.nextText) { MAP.nextText = text; $("mapNext").textContent = text; }
+  $("mapNext").className = "sub" + (next && (next.inside || next.ahead < LIT_M) ? " bad" : "");
+}
+requestAnimationFrame(mapFrame);
+
+function show(s) {
+  mapUpdate(s.map);
+  $("pos").textContent = s.place ? `P${s.place}` + (s.field ? `/${s.field}` : "") : "-";
+  $("cls").textContent = s.class ? esc(s.class) : " ";
+  $("loseA").textContent = s.losing_ahead ? "Losing: " + esc(s.losing_ahead) : " ";
+  gap("A", s.gap_ahead, s.trend_ahead, esc(s.ahead || ""), true);
+  gap("B", s.gap_behind, s.trend_behind, esc(s.behind || ""), false);
+
+  // time or laps left, with a ring for how much of the race is done
+  let frac = null;
+  if (s.time_left != null) { $("toGoLab").textContent = "Time left"; $("toGo").textContent = clock(s.time_left); }
+  else if (s.laps_to_go != null) { $("toGoLab").textContent = "Laps to go"; $("toGo").textContent = s.laps_to_go.toFixed(1); }
+  else { $("toGoLab").textContent = "Lap"; $("toGo").textContent = s.lap; }
+  if (s.laps_to_go != null && s.lap) frac = Math.max(0, Math.min(1, (s.lap - 1) / Math.max(1, (s.lap - 1) + s.laps_to_go)));
+  $("ringArc").setAttribute("stroke-dasharray", `${(frac || 0) * 264} 264`);
+  $("ringTxt").textContent = frac == null ? s.lap : Math.round(frac * 100) + "%";
+  $("lapLine").textContent = `Lap ${s.lap}` + (s.laps_to_go != null && s.time_left != null ? ` · ${s.laps_to_go.toFixed(1)} to go` : "");
+  $("spd").textContent = s.speed != null ? `${s.speed} km/h · gear ${s.gear > 0 ? s.gear : s.gear === 0 ? "N" : "R"}` : " ";
+
+  // fuel: bar of the tank, marker where the race needs it
+  $("fuel").textContent = s.fuel == null ? "-" : s.fuel.toFixed(1) + " L";
+  const cap = s.fuel_cap > 0 ? s.fuel_cap : null, pct = cap && s.fuel != null ? Math.max(0, Math.min(1, s.fuel / cap)) : 0;
+  const short = s.fuel_laps != null && s.laps_to_go != null && s.fuel_laps < s.laps_to_go;
+  const fill = $("fuelFill");
+  fill.style.width = (pct * 100) + "%";
+  fill.style.background = short ? "linear-gradient(90deg,#ff5d6c,#ff8a5d)" : pct < .2 ? "linear-gradient(90deg,#ffc83d,#ff9f3d)" : "linear-gradient(90deg,#34e089,#4aa8ff)";
+  const mark = $("fuelMark");
+  if (cap && s.fuel_per_lap != null && s.laps_to_go != null) { mark.style.display = "block"; mark.style.left = Math.min(98, s.laps_to_go * s.fuel_per_lap / cap * 100) + "%"; }
+  else mark.style.display = "none";
+  const fl = [];
+  if (s.fuel_laps != null) fl.push(`${s.fuel_laps.toFixed(1)} laps of fuel`);
+  if (s.fuel_per_lap != null) fl.push(`${s.fuel_per_lap.toFixed(2)} L/lap`);
+  $("fuelLine").textContent = fl.join(" · ") || " ";
+  $("fuelLine").className = "sub" + (short ? " bad" : "");
+  $("expLine").textContent = s.experiment ? esc(s.experiment) : " ";
+
+  // tyres: FL FR in front, RL RR behind, a spine between like a car from above
+  const T = s.tyre_temp || [null, null, null, null], names = ["FL", "FR", "RL", "RR"];
+  const tyre = i => { const [edge, txt] = tyreColour(T[i]); const w = s.wear && s.wear[i] != null ? s.wear[i] : null;
+    return `<div class="tyre" style="border-color:${edge};color:${txt};background:${edge}1f"><small>${names[i]}</small><div class="t">${T[i] == null ? "-" : T[i]}</div>${w == null ? "" : `<div class="w"><i style="width:${Math.max(4, 100 - w)}%"></i></div>`}</div>`; };
+  $("tyres").innerHTML = tyre(0) + '<div class="spine"></div>' + tyre(1) + tyre(2) + tyre(3);
+
+  // delta: a dot on a bar from -1 s to +1 s
+  const d = s.delta, card = $("cardD");
+  card.classList.remove("glow-good", "glow-bad");
+  $("delta").textContent = d == null ? "-" : (d >= 0 ? "+" : "−") + Math.abs(d).toFixed(2);
+  $("delta").className = "big " + (d == null ? "" : d > 0.05 ? "bad" : d < -0.05 ? "good" : "");
+  $("deltaDot").style.left = (d == null ? 50 : 50 + Math.max(-1, Math.min(1, d)) * 50) + "%";
+  if (d != null && d < -0.3) card.classList.add("glow-good"); else if (d != null && d > 0.5) card.classList.add("glow-bad");
+  $("tLast").textContent = lapt(s.last_lap); $("tBest").textContent = lapt(s.best_lap); $("tFast").textContent = lapt(s.fastest_lap);
+  const sd = s.sector_delta, sg = x => x == null ? "-" : (x <= 0 ? "▲ −" : "▼ +") + Math.abs(x).toFixed(2);
+  $("secs").innerHTML = sd ? [0, 1, 2].map(i => {
+    const live = i === sd.active && sd.now[i] == null, v = live ? sd.running : sd.now[i], l = sd.last ? sd.last[i] : null;
+    const cls = v == null ? "" : (v < -0.02 ? "up" : v > 0.02 ? "down" : "") + (live ? " live" : "");
+    return `<div class="sec ${cls}"><div><div class="k">Sector ${i + 1}${live ? " · now" : ""}</div><div class="v">${sg(v)}</div></div><div class="l">last lap<br>${sg(l)}</div></div>`;
+  }).join("") : "";
+  $("secs").classList.toggle("on", !!sd);
+  $("tLast").className = "v " + (s.last_lap > 0 && s.best_lap > 0 ? (s.last_lap <= s.best_lap + 0.001 ? "good" : "") : "");
+
+  const f = [];
+  if (s.blue) f.push('<span class="flag" style="background:var(--blue)">BLUE FLAG</span>');
+  if (s.yellow) f.push('<span class="flag" style="background:var(--warn)">YELLOW</span>');
+  if (s.penalties) f.push(`<span class="flag" style="background:var(--bad)">PENALTY ${s.penalties}</span>`);
+  if (s.in_pits) f.push('<span class="flag" style="background:#e6e9ee">IN PITS</span>');
+  if (s.invalid) f.push('<span class="flag" style="background:var(--warn)">LAP INVALID</span>');
+  $("flags").innerHTML = f.join("");
+  $("flags").style.display = f.length ? "flex" : "none";
+
+  const m = (s.radio || []).slice().reverse();
+  $("msgs").innerHTML = m.length ? m.slice(0, 3).map((t, i) => `<div class="bubble${i ? " old" : ""}">${esc(t)}</div>`).join("")
+    : `<div class="bubble none">${s.coaching === false ? "Coaching is off" : "No calls yet"}</div>`;
+}
+
+async function tick() {
+  try {
+    const s = await (await fetch("/api/race", { cache: "no-store" })).json();
+    update(s, s.status === "stopped" ? "StintRadio is off" : "Waiting for the car");
+  } catch (e) { update(null, "Lost the connection to the PC"); }
+  setTimeout(tick, 400);
+}
+tick();
+</script>
+</body>
+</html>

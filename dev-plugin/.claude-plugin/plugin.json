@@ -1,0 +1,7 @@
+{
+  "name": "kerbapex-dev",
+  "description": "Developer tools for KerbApex (DriverDirector and StintRadio): a debugger that gathers logs, test results and recordings into one report, and a sandboxed self-improvement loop that works on its own git branch for you to review.",
+  "version": "0.1.0",
+  "author": { "name": "KerbApex" },
+  "keywords": ["debugger", "self-improvement", "sim-racing", "dashboard", "coding"]
+}

@@ -1,0 +1,12 @@
+{
+  "name": "stintradio-local",
+  "description": "Local marketplace for the StintRadio plugin.",
+  "owner": { "name": "StintRadio" },
+  "plugins": [
+    {
+      "name": "stintradio",
+      "source": "./plugin",
+      "description": "A race engineer on the radio while you drive Le Mans Ultimate."
+    }
+  ]
+}

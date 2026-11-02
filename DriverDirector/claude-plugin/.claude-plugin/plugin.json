@@ -1,0 +1,18 @@
+{
+  "name": "driverdirector",
+  "description": "Set up, configure and run DriverDirector, the driver-focused automated replay director for Le Mans Ultimate (pick a replay and driver, plan the camera work and picture-in-picture battles, record through OBS, produce the finished video with commentary and music) and for RaceRoom Racing Experience (replay cameras, telemetry leaderboard overlay, private YouTube drafts).",
+  "version": "0.7.0",
+  "author": {
+    "name": "DriverDirector"
+  },
+  "keywords": [
+    "le-mans-ultimate",
+    "lmu",
+    "obs",
+    "replay",
+    "sim-racing",
+    "commentary",
+    "raceroom",
+    "r3e"
+  ]
+}
